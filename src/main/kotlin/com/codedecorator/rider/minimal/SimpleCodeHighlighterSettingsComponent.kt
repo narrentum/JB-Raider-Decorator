@@ -171,8 +171,8 @@ class SimpleCodeHighlighterSettingsComponent {
                 tableModel!!.getValueAt(i, 3) != rule.isRegex ||
                 tableModel!!.getValueAt(i, 4) != rule.foregroundColor ||
                 tableModel!!.getValueAt(i, 5) != rule.backgroundColor ||
-                tableModel!!.getValueAt(i, 6) != rule.fontStyle ||
-                tableModel!!.getValueAt(i, 7) != rule.textDecoration) {
+                tableModel!!.getValueAt(i, 6) != rule.fontStyle.displayName ||
+                tableModel!!.getValueAt(i, 7) != rule.textDecoration.displayName) {
                 return true
             }
         }

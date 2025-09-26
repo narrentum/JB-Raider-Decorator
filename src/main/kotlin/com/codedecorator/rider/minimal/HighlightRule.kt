@@ -49,7 +49,7 @@ data class HighlightRule(
             ),
             HighlightRule(
                 id = "rule_todo_fixed",
-                name = "TODO [Fixed] - Strike through", 
+                name = "TODO [Fixed] - Зачеркнутый", 
                 targetWord = "//\\s*TODO:.*?\\[Fixed\\].*",
                 isRegex = true,
                 condition = "",
@@ -88,7 +88,7 @@ data class HighlightRule(
             ),
             HighlightRule(
                 id = "rule_fixme_fixed",
-                name = "FIXME [Fixed] - Strike through",
+                name = "FIXME [Fixed] - Зачеркнутый",
                 targetWord = "//\\s*FIXME:.*?\\[Fixed\\].*",
                 isRegex = true,
                 condition = "",
@@ -127,7 +127,7 @@ data class HighlightRule(
             ),
             HighlightRule(
                 id = "rule_critical",
-                name = "[CRITICAL] comments",
+                name = "[CRITICAL] - Подчеркнутый",
                 targetWord = "//\\s*\\[CRITICAL\\].*",
                 isRegex = true,
                 condition = "",

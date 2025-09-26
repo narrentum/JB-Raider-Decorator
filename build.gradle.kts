@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.3.0" // v1.3.0 - Critical fix: removed auto-applying TableModelListener causing rule loss
+version = "1.3.1" // v1.3.0 - Critical fix: removed auto-applying TableModelListener causing rule loss
 
 repositories {
     mavenCentral()
