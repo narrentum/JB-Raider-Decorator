@@ -1,5 +1,6 @@
 package com.codedecorator.rider.minimal
 
+import com.intellij.openapi.project.ProjectManager
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.*
@@ -54,6 +55,9 @@ class SimpleCodeHighlighterSettingsComponent {
             settings.rules.clear()
             settings.rules.addAll(HighlightRule.createDefault())
             loadRulesFromSettings()
+            
+            // Immediately refresh highlighting
+            refreshAllProjectHighlighting()
         }
         
         buttonPanel.add(addButton)
@@ -143,6 +147,18 @@ class SimpleCodeHighlighterSettingsComponent {
             )
             
             settings.rules.add(rule)
+        }
+        
+        // Immediately refresh highlighting in all open projects
+        refreshAllProjectHighlighting()
+    }
+    
+    private fun refreshAllProjectHighlighting() {
+        // Get all open projects and refresh highlighting
+        val projects = ProjectManager.getInstance().openProjects
+        for (project in projects) {
+            val highlighterComponent = project.getComponent(DirectHighlighterComponent::class.java)
+            highlighterComponent?.refreshAllHighlighting()
         }
     }
 

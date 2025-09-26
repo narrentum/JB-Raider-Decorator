@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.5" // v1.2.5 - UI shows all rules from settings, not hardcoded data
+version = "1.2.6" // v1.2.6 - Settings changes now apply immediately to open files
 
 repositories {
     mavenCentral()
