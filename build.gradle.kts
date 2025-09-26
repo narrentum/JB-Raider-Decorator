@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.8" // v1.2.8 - Full rule editing: all columns (enabled, font, decoration, regex) now work
+version = "1.2.9" // v1.2.9 - Fixed empty table issue: enum values as strings, debug output
 
 repositories {
     mavenCentral()

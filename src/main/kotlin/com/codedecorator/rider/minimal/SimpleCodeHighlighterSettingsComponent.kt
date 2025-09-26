@@ -64,8 +64,8 @@ class SimpleCodeHighlighterSettingsComponent {
                 false,
                 "#000000", 
                 "#FFFFFF",
-                HighlightRule.FontStyle.NORMAL,
-                HighlightRule.TextDecoration.NONE
+                "Нормальный", // String вместо enum
+                "Нет"        // String вместо enum
             ))
         }
         
@@ -108,18 +108,38 @@ class SimpleCodeHighlighterSettingsComponent {
         val settings = SimpleSettings.getInstance()
         tableModel!!.setRowCount(0) // Clear existing rows
         
-        for (rule in settings.rules) {
-            tableModel!!.addRow(arrayOf(
-                rule.enabled,
-                rule.name,
-                rule.targetWord,
-                rule.isRegex,
-                rule.foregroundColor,
-                rule.backgroundColor,
-                rule.fontStyle,
-                rule.textDecoration
-            ))
+        println("[DEBUG] Loading ${settings.rules.size} rules into table")
+        
+        for ((index, rule) in settings.rules.withIndex()) {
+            try {
+                println("[DEBUG] Loading rule $index: ${rule.name}, enabled=${rule.enabled}")
+                tableModel!!.addRow(arrayOf(
+                    rule.enabled,
+                    rule.name,
+                    rule.targetWord,
+                    rule.isRegex,
+                    rule.foregroundColor,
+                    rule.backgroundColor,
+                    rule.fontStyle.displayName, // Используем displayName вместо enum
+                    rule.textDecoration.displayName // Используем displayName вместо enum
+                ))
+            } catch (e: Exception) {
+                println("[ERROR] Failed to load rule $index: ${e.message}")
+                // Добавляем безопасную строку с базовыми значениями
+                tableModel!!.addRow(arrayOf(
+                    true,
+                    rule.name ?: "Unknown Rule",
+                    rule.targetWord ?: "pattern",
+                    false,
+                    "#000000",
+                    "#FFFFFF",
+                    "Нормальный",
+                    "Нет"
+                ))
+            }
         }
+        
+        println("[DEBUG] Table now has ${tableModel!!.rowCount} rows")
     }
 
     fun getPanel(): JComponent {
@@ -163,31 +183,49 @@ class SimpleCodeHighlighterSettingsComponent {
         settings.rules.clear()
         
         for (i in 0 until tableModel!!.rowCount) {
-            val enabled = tableModel!!.getValueAt(i, 0) as? Boolean ?: true
-            val name = tableModel!!.getValueAt(i, 1) as? String ?: "Rule"
-            val targetWord = tableModel!!.getValueAt(i, 2) as? String ?: "pattern"
-            val isRegex = tableModel!!.getValueAt(i, 3) as? Boolean ?: false
-            val foregroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#000000"
-            val backgroundColor = tableModel!!.getValueAt(i, 5) as? String ?: "#FFFFFF"
-            val fontStyle = tableModel!!.getValueAt(i, 6) as? HighlightRule.FontStyle ?: HighlightRule.FontStyle.NORMAL
-            val textDecoration = tableModel!!.getValueAt(i, 7) as? HighlightRule.TextDecoration ?: HighlightRule.TextDecoration.NONE
-            
-            // Create new rule with all table data
-            val rule = HighlightRule(
-                id = "rule_$i",
-                name = name,
-                targetWord = targetWord,
-                isRegex = isRegex,
-                condition = "",
-                exclusion = "",
-                backgroundColor = backgroundColor,
-                foregroundColor = foregroundColor,
-                fontStyle = fontStyle,
-                textDecoration = textDecoration,
-                enabled = enabled
-            )
-            
-            settings.rules.add(rule)
+            try {
+                val enabled = tableModel!!.getValueAt(i, 0) as? Boolean ?: true
+                val name = tableModel!!.getValueAt(i, 1) as? String ?: "Rule"
+                val targetWord = tableModel!!.getValueAt(i, 2) as? String ?: "pattern"
+                val isRegex = tableModel!!.getValueAt(i, 3) as? Boolean ?: false
+                val foregroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#000000"
+                val backgroundColor = tableModel!!.getValueAt(i, 5) as? String ?: "#FFFFFF"
+                val fontStyleStr = tableModel!!.getValueAt(i, 6) as? String ?: "Нормальный"
+                val textDecorationStr = tableModel!!.getValueAt(i, 7) as? String ?: "Нет"
+                
+                // Convert string values back to enums
+                val fontStyle = when (fontStyleStr) {
+                    "Жирный" -> HighlightRule.FontStyle.BOLD
+                    "Курсив" -> HighlightRule.FontStyle.ITALIC
+                    else -> HighlightRule.FontStyle.NORMAL
+                }
+                
+                val textDecoration = when (textDecorationStr) {
+                    "Подчёркивание" -> HighlightRule.TextDecoration.UNDERLINE
+                    "Зачёркивание" -> HighlightRule.TextDecoration.STRIKETHROUGH
+                    else -> HighlightRule.TextDecoration.NONE
+                }
+                
+                // Create new rule with all table data
+                val rule = HighlightRule(
+                    id = "rule_$i",
+                    name = name,
+                    targetWord = targetWord,
+                    isRegex = isRegex,
+                    condition = "",
+                    exclusion = "",
+                    backgroundColor = backgroundColor,
+                    foregroundColor = foregroundColor,
+                    fontStyle = fontStyle,
+                    textDecoration = textDecoration,
+                    enabled = enabled
+                )
+                
+                settings.rules.add(rule)
+                
+            } catch (e: Exception) {
+                println("[ERROR] Failed to apply row $i: ${e.message}")
+            }
         }
     }
     
