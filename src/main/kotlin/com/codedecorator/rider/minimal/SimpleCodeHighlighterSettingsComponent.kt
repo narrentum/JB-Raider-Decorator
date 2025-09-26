@@ -29,7 +29,19 @@ class SimpleCodeHighlighterSettingsComponent {
             "Font Style",
             "Text Decoration"
         )
-        tableModel = DefaultTableModel(columnNames, 0)
+        tableModel = object : DefaultTableModel(columnNames, 0) {
+            override fun getColumnClass(columnIndex: Int): Class<*> {
+                return when (columnIndex) {
+                    0 -> Boolean::class.java  // Enabled column
+                    3 -> Boolean::class.java  // IsRegex column
+                    else -> String::class.java
+                }
+            }
+            
+            override fun isCellEditable(row: Int, column: Int): Boolean {
+                return true // All cells are editable
+            }
+        }
         
         // Load actual rules from settings instead of hardcoded data
         loadRulesFromSettings()
@@ -38,6 +50,27 @@ class SimpleCodeHighlighterSettingsComponent {
         table = JTable(tableModel)
         table!!.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         table!!.preferredScrollableViewportSize = Dimension(800, 250) // Увеличили для большего количества столбцов
+        
+        // Set up column renderers and editors
+        val columnModel = table!!.columnModel
+        
+        // Column 0: Enabled - checkbox
+        columnModel.getColumn(0).cellEditor = DefaultCellEditor(JCheckBox())
+        columnModel.getColumn(0).preferredWidth = 60
+        
+        // Column 3: IsRegex - checkbox  
+        columnModel.getColumn(3).cellEditor = DefaultCellEditor(JCheckBox())
+        columnModel.getColumn(3).preferredWidth = 60
+        
+        // Column 6: Font Style - dropdown
+        val fontStyleCombo = JComboBox(arrayOf("Нормальный", "Жирный", "Курсив", "Жирный курсив"))
+        columnModel.getColumn(6).cellEditor = DefaultCellEditor(fontStyleCombo)
+        columnModel.getColumn(6).preferredWidth = 120
+        
+        // Column 7: Text Decoration - dropdown
+        val textDecorationCombo = JComboBox(arrayOf("Нет", "Подчеркивание", "Зачеркивание"))
+        columnModel.getColumn(7).cellEditor = DefaultCellEditor(textDecorationCombo)
+        columnModel.getColumn(7).preferredWidth = 120
         
         // Remove automatic table listener - only apply on manual Apply button press
         // TableModelListener was causing cycles and clearing all rules
@@ -187,6 +220,7 @@ class SimpleCodeHighlighterSettingsComponent {
     private fun applyTableToSettings(settings: SimpleSettings) {
         // Convert table data back to HighlightRule objects
         settings.rules.clear()
+        println("[DEBUG] Converting ${tableModel!!.rowCount} table rows to rules")
         
         for (i in 0 until tableModel!!.rowCount) {
             try {
@@ -199,10 +233,13 @@ class SimpleCodeHighlighterSettingsComponent {
                 val fontStyleStr = tableModel!!.getValueAt(i, 6) as? String ?: "Нормальный"
                 val textDecorationStr = tableModel!!.getValueAt(i, 7) as? String ?: "Нет"
                 
+                println("[DEBUG] Row $i: enabled=${enabled} (${tableModel!!.getValueAt(i, 0)?.javaClass?.simpleName})")
+                
                 // Convert string values back to enums
                 val fontStyle = when (fontStyleStr) {
                     "Жирный" -> HighlightRule.FontStyle.BOLD
                     "Курсив" -> HighlightRule.FontStyle.ITALIC
+                    "Жирный курсив" -> HighlightRule.FontStyle.BOLD_ITALIC
                     else -> HighlightRule.FontStyle.NORMAL
                 }
                 
