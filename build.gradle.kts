@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.6" // v1.2.6 - Settings changes now apply immediately to open files
+version = "1.2.8" // v1.2.8 - Full rule editing: all columns (enabled, font, decoration, regex) now work
 
 repositories {
     mavenCentral()

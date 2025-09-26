@@ -4,6 +4,7 @@ import com.intellij.openapi.project.ProjectManager
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.*
+import javax.swing.event.TableModelListener
 import javax.swing.table.DefaultTableModel
 
 class SimpleCodeHighlighterSettingsComponent {
@@ -17,8 +18,17 @@ class SimpleCodeHighlighterSettingsComponent {
     }
 
     private fun createUI() {
-        // Create simple table model
-        val columnNames = arrayOf("Enabled", "Name", "Target Word", "Foreground Color", "Background Color")
+        // Create table model with all important columns
+        val columnNames = arrayOf(
+            "Enabled", 
+            "Name", 
+            "Target Word", 
+            "IsRegex",
+            "Foreground Color", 
+            "Background Color",
+            "Font Style",
+            "Text Decoration"
+        )
         tableModel = DefaultTableModel(columnNames, 0)
         
         // Load actual rules from settings instead of hardcoded data
@@ -27,7 +37,15 @@ class SimpleCodeHighlighterSettingsComponent {
         // Create table
         table = JTable(tableModel)
         table!!.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-        table!!.preferredScrollableViewportSize = Dimension(600, 200)
+        table!!.preferredScrollableViewportSize = Dimension(800, 250) // Увеличили для большего количества столбцов
+        
+        // Add table model listener for instant changes
+        tableModel!!.addTableModelListener { e ->
+            // When table data changes, immediately apply to settings
+            val settings = SimpleSettings.getInstance()
+            applyTableToSettings(settings)
+            refreshAllProjectHighlighting()
+        }
         
         // Create scroll pane
         val scrollPane = JScrollPane(table)
@@ -39,7 +57,16 @@ class SimpleCodeHighlighterSettingsComponent {
         val resetButton = JButton("Reset to Defaults")
         
         addButton.addActionListener {
-            tableModel!!.addRow(arrayOf(true, "New Rule", "pattern", "#000000", "#FFFFFF"))
+            tableModel!!.addRow(arrayOf(
+                true, 
+                "New Rule", 
+                "pattern", 
+                false,
+                "#000000", 
+                "#FFFFFF",
+                HighlightRule.FontStyle.NORMAL,
+                HighlightRule.TextDecoration.NONE
+            ))
         }
         
         removeButton.addActionListener {
@@ -86,8 +113,11 @@ class SimpleCodeHighlighterSettingsComponent {
                 rule.enabled,
                 rule.name,
                 rule.targetWord,
+                rule.isRegex,
                 rule.foregroundColor,
-                rule.backgroundColor
+                rule.backgroundColor,
+                rule.fontStyle,
+                rule.textDecoration
             ))
         }
     }
@@ -106,14 +136,17 @@ class SimpleCodeHighlighterSettingsComponent {
             return true
         }
         
-        // Check if any rule data differs
+        // Check if any rule data differs (all 8 columns)
         for (i in 0 until tableModel!!.rowCount) {
             val rule = settings.rules[i]
             if (tableModel!!.getValueAt(i, 0) != rule.enabled ||
                 tableModel!!.getValueAt(i, 1) != rule.name ||
                 tableModel!!.getValueAt(i, 2) != rule.targetWord ||
-                tableModel!!.getValueAt(i, 3) != rule.foregroundColor ||
-                tableModel!!.getValueAt(i, 4) != rule.backgroundColor) {
+                tableModel!!.getValueAt(i, 3) != rule.isRegex ||
+                tableModel!!.getValueAt(i, 4) != rule.foregroundColor ||
+                tableModel!!.getValueAt(i, 5) != rule.backgroundColor ||
+                tableModel!!.getValueAt(i, 6) != rule.fontStyle ||
+                tableModel!!.getValueAt(i, 7) != rule.textDecoration) {
                 return true
             }
         }
@@ -121,6 +154,11 @@ class SimpleCodeHighlighterSettingsComponent {
     }
 
     fun apply(settings: SimpleSettings) {
+        applyTableToSettings(settings)
+        refreshAllProjectHighlighting()
+    }
+    
+    private fun applyTableToSettings(settings: SimpleSettings) {
         // Convert table data back to HighlightRule objects
         settings.rules.clear()
         
@@ -128,29 +166,29 @@ class SimpleCodeHighlighterSettingsComponent {
             val enabled = tableModel!!.getValueAt(i, 0) as? Boolean ?: true
             val name = tableModel!!.getValueAt(i, 1) as? String ?: "Rule"
             val targetWord = tableModel!!.getValueAt(i, 2) as? String ?: "pattern"
-            val foregroundColor = tableModel!!.getValueAt(i, 3) as? String ?: "#000000"
-            val backgroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#FFFFFF"
+            val isRegex = tableModel!!.getValueAt(i, 3) as? Boolean ?: false
+            val foregroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#000000"
+            val backgroundColor = tableModel!!.getValueAt(i, 5) as? String ?: "#FFFFFF"
+            val fontStyle = tableModel!!.getValueAt(i, 6) as? HighlightRule.FontStyle ?: HighlightRule.FontStyle.NORMAL
+            val textDecoration = tableModel!!.getValueAt(i, 7) as? HighlightRule.TextDecoration ?: HighlightRule.TextDecoration.NONE
             
-            // Create new rule with table data
+            // Create new rule with all table data
             val rule = HighlightRule(
                 id = "rule_$i",
                 name = name,
                 targetWord = targetWord,
-                isRegex = targetWord.contains("\\"),
+                isRegex = isRegex,
                 condition = "",
                 exclusion = "",
                 backgroundColor = backgroundColor,
                 foregroundColor = foregroundColor,
-                fontStyle = HighlightRule.FontStyle.NORMAL,
-                textDecoration = HighlightRule.TextDecoration.NONE,
+                fontStyle = fontStyle,
+                textDecoration = textDecoration,
                 enabled = enabled
             )
             
             settings.rules.add(rule)
         }
-        
-        // Immediately refresh highlighting in all open projects
-        refreshAllProjectHighlighting()
     }
     
     private fun refreshAllProjectHighlighting() {
