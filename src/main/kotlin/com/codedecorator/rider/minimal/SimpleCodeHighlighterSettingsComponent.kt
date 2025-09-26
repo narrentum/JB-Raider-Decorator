@@ -20,10 +20,8 @@ class SimpleCodeHighlighterSettingsComponent {
         val columnNames = arrayOf("Enabled", "Name", "Target Word", "Foreground Color", "Background Color")
         tableModel = DefaultTableModel(columnNames, 0)
         
-        // Add some sample data
-        tableModel!!.addRow(arrayOf(true, "_this highlighting", "_this", "#000000", "#FFFF00"))
-        tableModel!!.addRow(arrayOf(true, "TODO comments", "TODO", "#FF0000", "#FFFF00"))
-        tableModel!!.addRow(arrayOf(true, "Console logs", "console\\.log", "#0000FF", "#E0E0E0"))
+        // Load actual rules from settings instead of hardcoded data
+        loadRulesFromSettings()
         
         // Create table
         table = JTable(tableModel)
@@ -51,10 +49,11 @@ class SimpleCodeHighlighterSettingsComponent {
         }
         
         resetButton.addActionListener {
-            tableModel!!.setRowCount(0)
-            tableModel!!.addRow(arrayOf(true, "_this highlighting", "_this", "#000000", "#FFFF00"))
-            tableModel!!.addRow(arrayOf(true, "TODO comments", "TODO", "#FF0000", "#FFFF00"))
-            tableModel!!.addRow(arrayOf(true, "Console logs", "console\\.log", "#0000FF", "#E0E0E0"))
+            // Reset to default rules
+            val settings = SimpleSettings.getInstance()
+            settings.rules.clear()
+            settings.rules.addAll(HighlightRule.createDefault())
+            loadRulesFromSettings()
         }
         
         buttonPanel.add(addButton)
@@ -73,6 +72,21 @@ class SimpleCodeHighlighterSettingsComponent {
         // Add padding
         mainPanel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
     }
+    
+    private fun loadRulesFromSettings() {
+        val settings = SimpleSettings.getInstance()
+        tableModel!!.setRowCount(0) // Clear existing rows
+        
+        for (rule in settings.rules) {
+            tableModel!!.addRow(arrayOf(
+                rule.enabled,
+                rule.name,
+                rule.targetWord,
+                rule.foregroundColor,
+                rule.backgroundColor
+            ))
+        }
+    }
 
     fun getPanel(): JComponent {
         return mainPanel
@@ -83,17 +97,57 @@ class SimpleCodeHighlighterSettingsComponent {
     }
 
     fun isModified(settings: SimpleSettings): Boolean {
-        // For now, always return false to avoid save issues
+        // Simple check - if row count differs, it's modified
+        if (tableModel!!.rowCount != settings.rules.size) {
+            return true
+        }
+        
+        // Check if any rule data differs
+        for (i in 0 until tableModel!!.rowCount) {
+            val rule = settings.rules[i]
+            if (tableModel!!.getValueAt(i, 0) != rule.enabled ||
+                tableModel!!.getValueAt(i, 1) != rule.name ||
+                tableModel!!.getValueAt(i, 2) != rule.targetWord ||
+                tableModel!!.getValueAt(i, 3) != rule.foregroundColor ||
+                tableModel!!.getValueAt(i, 4) != rule.backgroundColor) {
+                return true
+            }
+        }
         return false
     }
 
     fun apply(settings: SimpleSettings) {
-        // TODO: Convert table data back to HighlightRule objects
-        // For now, just ensure we don't crash
+        // Convert table data back to HighlightRule objects
+        settings.rules.clear()
+        
+        for (i in 0 until tableModel!!.rowCount) {
+            val enabled = tableModel!!.getValueAt(i, 0) as? Boolean ?: true
+            val name = tableModel!!.getValueAt(i, 1) as? String ?: "Rule"
+            val targetWord = tableModel!!.getValueAt(i, 2) as? String ?: "pattern"
+            val foregroundColor = tableModel!!.getValueAt(i, 3) as? String ?: "#000000"
+            val backgroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#FFFFFF"
+            
+            // Create new rule with table data
+            val rule = HighlightRule(
+                id = "rule_$i",
+                name = name,
+                targetWord = targetWord,
+                isRegex = targetWord.contains("\\"),
+                condition = "",
+                exclusion = "",
+                backgroundColor = backgroundColor,
+                foregroundColor = foregroundColor,
+                fontStyle = HighlightRule.FontStyle.NORMAL,
+                textDecoration = HighlightRule.TextDecoration.NONE,
+                enabled = enabled
+            )
+            
+            settings.rules.add(rule)
+        }
     }
 
     fun reset(settings: SimpleSettings) {
-        // TODO: Load actual settings into table
-        // For now, just show default data
+        // Load actual settings into table
+        loadRulesFromSettings()
     }
 }

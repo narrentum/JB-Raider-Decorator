@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.4" // v1.2.4 - Fixed UI settings with simplified table
+version = "1.2.5" // v1.2.5 - UI shows all rules from settings, not hardcoded data
 
 repositories {
     mavenCentral()
