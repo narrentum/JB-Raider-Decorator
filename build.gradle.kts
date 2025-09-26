@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.3" // v1.2.3 - Restored after accidental rollback
+version = "1.2.4" // v1.2.4 - Fixed UI settings with simplified table
 
 repositories {
     mavenCentral()
