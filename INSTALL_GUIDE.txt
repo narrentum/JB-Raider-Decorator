@@ -1,0 +1,32 @@
+﻿# Plugin Installation Script
+$pluginPath = "C:\Decorator for Raider\build\distributions\Decorator for Raider-1.0.7.zip"
+$testFile = "C:\Decorator for Raider\test_files\TestFile.cs"
+
+Write-Host "=== Decorator for Rider Plugin Installation Guide ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "Latest Plugin: " -NoNewline
+Write-Host $pluginPath -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Installation Steps:" -ForegroundColor Cyan
+Write-Host "1. Open JetBrains Rider"
+Write-Host "2. Go to File  Settings (Ctrl+Alt+S)"
+Write-Host "3. Navigate to Plugins"
+Write-Host "4. Click the gear icon   Install Plugin from Disk..."
+Write-Host "5. Select the plugin file above"
+Write-Host "6. Restart Rider when prompted"
+Write-Host ""
+Write-Host "Test File: " -NoNewline  
+Write-Host $testFile -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Expected Results After Installation:" -ForegroundColor Cyan
+Write-Host " '_this' text should be highlighted with blue background"
+Write-Host " 'TODO' text should be highlighted with yellow background"  
+Write-Host " Blue circle with 'T' icon should appear in gutter for '_this'"
+Write-Host " Yellow square with '!' icon should appear in gutter for 'TODO'"
+Write-Host ""
+Write-Host "Plugin Features:" -ForegroundColor Magenta
+Write-Host " Standard Annotator"
+Write-Host " External Annotator" 
+Write-Host " Line Marker Provider with gutter icons"
+Write-Host " Manual toggle action available"
+Write-Host ""

@@ -1,0 +1,58 @@
+<idea-plugin>
+    <id>com.codedecorator.rider</id>
+    <name>Simple Code Highlighter</name>
+    <vendor email="narrentum@github.com">Simple Highlighter</vendor>
+
+    <description><![CDATA[
+    Простая подсветка "_this" и "TODO" в коде.
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.2.3</h3>
+    <ul>
+      <li>🔄 Restored project after accidental rollback</li>
+      <li>🎨 Color picker with standard JColorChooser dialog</li>
+      <li>🚀 Instant settings application</li>
+      <li>✨ Improved table editing UX</li>
+    </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.codedecorator.rider.minimal.SimpleSettings"/>
+        <applicationConfigurable 
+            parentId="tools" 
+            instance="com.codedecorator.rider.minimal.SimpleCodeHighlighterConfigurable" 
+            id="com.codedecorator.rider.configurable" 
+            displayName="Simple Code Highlighter"/>
+    </extensions>
+
+    <project-components>
+        <component>
+            <implementation-class>com.codedecorator.rider.minimal.DirectHighlighterComponent</implementation-class>
+        </component>
+    </project-components>
+    
+    <actions>
+        <!-- Создаем группу для подменю -->
+        <group id="com.codedecorator.rider.megaGroup" 
+               text="_ Mega" 
+               description="Code Decorator Mega Tools"
+               popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            
+            <!-- Современный менеджер правил -->
+            <action id="com.codedecorator.rider.modernRulesManager" 
+                    class="com.codedecorator.rider.minimal.ModernRulesManagerAction" 
+                    text="Highlighting Rules Manager"
+                    description="Modern table-based rule management with inline editing">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift H"/>
+            </action>
+            
+            <!-- Разделитель -->
+            <separator/>
+        </group>
+    </actions>
+</idea-plugin>

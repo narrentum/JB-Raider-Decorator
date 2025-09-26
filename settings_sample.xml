@@ -1,0 +1,57 @@
+<application>
+  <component name="CodeDecoratorSettings">
+    <option name="rules">
+      <list>
+        <HighlightRule>
+          <option name="backgroundColor" value="#1C0F0F" />
+          <option name="condition" value="using _this" />
+          <option name="fontStyle" value="Жирный" />
+          <option name="foregroundColor" value="#569CD6" />
+          <option name="id" value="rule_this" />
+          <option name="name" value="_this highlighting" />
+          <option name="regex" value="true" />
+          <option name="targetWord" value="(?=(?:[^&quot;]*&quot;[^&quot;]*&quot;)*[^&quot;]*$)\b_this\b" />
+        </HighlightRule>
+        <HighlightRule>
+          <option name="backgroundColor" value="#1C0F0F" />
+          <option name="fontStyle" value="Жирный" />
+          <option name="foregroundColor" value="#888888" />
+          <option name="id" value="rule_todo_fixed" />
+          <option name="name" value="TODO [Fixed] - WORKING" />
+          <option name="regex" value="true" />
+          <option name="targetWord" value=".*//\s*TODO:.*?\[Fixed\].*" />
+          <option name="textDecoration" value="Перечеркнутый" />
+        </HighlightRule>
+        <HighlightRule>
+          <option name="backgroundColor" value="#1C0F0F" />
+          <option name="fontStyle" value="Жирный" />
+          <option name="foregroundColor" value="#888888" />
+          <option name="id" value="rule_fixme_fixed" />
+          <option name="name" value="FIXME [Fixed] - WORKING" />
+          <option name="regex" value="true" />
+          <option name="targetWord" value=".*//\s*FIXME:.*?\[Fixed\].*" />
+          <option name="textDecoration" value="Перечеркнутый" />
+        </HighlightRule>
+        <HighlightRule>
+          <option name="backgroundColor" value="#1C0F0F" />
+          <option name="fontStyle" value="Жирный" />
+          <option name="foregroundColor" value="#FF8C00" />
+          <option name="id" value="rule_todo_qa" />
+          <option name="name" value="TODO [QA] - Orange" />
+          <option name="regex" value="true" />
+          <option name="targetWord" value=".*//\s*TODO:.*?\[QA\].*" />
+        </HighlightRule>
+        <HighlightRule>
+          <option name="backgroundColor" value="#1C0F0F" />
+          <option name="fontStyle" value="Жирный" />
+          <option name="foregroundColor" value="#1E90FF" />
+          <option name="id" value="rule_todo_progress" />
+          <option name="name" value="TODO [InProgress] - Blue" />
+          <option name="regex" value="true" />
+          <option name="targetWord" value=".*//\s*TODO:.*?\[InProgress\].*" />
+          <option name="textDecoration" value="Подчеркнутый" />
+        </HighlightRule>
+      </list>
+    </option>
+  </component>
+</application>
