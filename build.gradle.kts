@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.2.9" // v1.2.9 - Fixed empty table issue: enum values as strings, debug output
+version = "1.3.0" // v1.3.0 - Critical fix: removed auto-applying TableModelListener causing rule loss
 
 repositories {
     mavenCentral()

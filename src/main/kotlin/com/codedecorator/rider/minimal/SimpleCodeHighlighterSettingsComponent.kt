@@ -39,13 +39,8 @@ class SimpleCodeHighlighterSettingsComponent {
         table!!.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         table!!.preferredScrollableViewportSize = Dimension(800, 250) // Увеличили для большего количества столбцов
         
-        // Add table model listener for instant changes
-        tableModel!!.addTableModelListener { e ->
-            // When table data changes, immediately apply to settings
-            val settings = SimpleSettings.getInstance()
-            applyTableToSettings(settings)
-            refreshAllProjectHighlighting()
-        }
+        // Remove automatic table listener - only apply on manual Apply button press
+        // TableModelListener was causing cycles and clearing all rules
         
         // Create scroll pane
         val scrollPane = JScrollPane(table)
@@ -106,9 +101,15 @@ class SimpleCodeHighlighterSettingsComponent {
     
     private fun loadRulesFromSettings() {
         val settings = SimpleSettings.getInstance()
-        tableModel!!.setRowCount(0) // Clear existing rows
-        
         println("[DEBUG] Loading ${settings.rules.size} rules into table")
+        
+        // Temporarily disable table listener to avoid cycles
+        val listeners = tableModel!!.tableModelListeners
+        for (listener in listeners) {
+            tableModel!!.removeTableModelListener(listener)
+        }
+        
+        tableModel!!.setRowCount(0) // Clear existing rows
         
         for ((index, rule) in settings.rules.withIndex()) {
             try {
@@ -137,6 +138,11 @@ class SimpleCodeHighlighterSettingsComponent {
                     "Нет"
                 ))
             }
+        }
+        
+        // Re-add listeners
+        for (listener in listeners) {
+            tableModel!!.addTableModelListener(listener)
         }
         
         println("[DEBUG] Table now has ${tableModel!!.rowCount} rows")
