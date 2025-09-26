@@ -75,7 +75,9 @@ class SimpleCodeHighlighterSettingsComponent {
                 return checkbox
             }
         }
-        columnModel.getColumn(0).cellEditor = DefaultCellEditor(JCheckBox())
+        val enabledEditor = JCheckBox()
+        enabledEditor.horizontalAlignment = JCheckBox.CENTER
+        columnModel.getColumn(0).cellEditor = DefaultCellEditor(enabledEditor)
         columnModel.getColumn(0).preferredWidth = 60
         
         // Column 3: IsRegex - checkbox (both renderer and editor)
@@ -96,7 +98,9 @@ class SimpleCodeHighlighterSettingsComponent {
                 return checkbox
             }
         }
-        columnModel.getColumn(3).cellEditor = DefaultCellEditor(JCheckBox())
+        val regexEditor = JCheckBox()
+        regexEditor.horizontalAlignment = JCheckBox.CENTER
+        columnModel.getColumn(3).cellEditor = DefaultCellEditor(regexEditor)
         columnModel.getColumn(3).preferredWidth = 60
         
         // Column 6: Font Style - dropdown
