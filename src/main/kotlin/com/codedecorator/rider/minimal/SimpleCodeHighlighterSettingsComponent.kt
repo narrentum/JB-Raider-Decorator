@@ -6,6 +6,7 @@ import java.awt.Dimension
 import javax.swing.*
 import javax.swing.event.TableModelListener
 import javax.swing.table.DefaultTableModel
+import javax.swing.table.DefaultTableCellRenderer
 
 class SimpleCodeHighlighterSettingsComponent {
 
@@ -54,11 +55,47 @@ class SimpleCodeHighlighterSettingsComponent {
         // Set up column renderers and editors
         val columnModel = table!!.columnModel
         
-        // Column 0: Enabled - checkbox
+        // Column 0: Enabled - checkbox (both renderer and editor)
+        val enabledCheckbox = JCheckBox()
+        enabledCheckbox.horizontalAlignment = JCheckBox.CENTER
+        columnModel.getColumn(0).cellRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                table: JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean,
+                row: Int, column: Int
+            ): java.awt.Component {
+                val checkbox = JCheckBox()
+                checkbox.isSelected = value as? Boolean ?: false
+                checkbox.horizontalAlignment = JCheckBox.CENTER
+                checkbox.isOpaque = true
+                if (isSelected) {
+                    checkbox.background = table.selectionBackground
+                } else {
+                    checkbox.background = table.background
+                }
+                return checkbox
+            }
+        }
         columnModel.getColumn(0).cellEditor = DefaultCellEditor(JCheckBox())
         columnModel.getColumn(0).preferredWidth = 60
         
-        // Column 3: IsRegex - checkbox  
+        // Column 3: IsRegex - checkbox (both renderer and editor)
+        columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                table: JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean,
+                row: Int, column: Int
+            ): java.awt.Component {
+                val checkbox = JCheckBox()
+                checkbox.isSelected = value as? Boolean ?: false
+                checkbox.horizontalAlignment = JCheckBox.CENTER
+                checkbox.isOpaque = true
+                if (isSelected) {
+                    checkbox.background = table.selectionBackground
+                } else {
+                    checkbox.background = table.background
+                }
+                return checkbox
+            }
+        }
         columnModel.getColumn(3).cellEditor = DefaultCellEditor(JCheckBox())
         columnModel.getColumn(3).preferredWidth = 60
         

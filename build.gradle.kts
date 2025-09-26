@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.3.2" // v1.3.2 - Fixed enabled/disabled toggle with proper Boolean handling
+version = "1.3.3" // v1.3.3 - Fixed checkbox rendering to stay visible always (not just on edit)
 
 repositories {
     mavenCentral()
