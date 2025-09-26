@@ -9,7 +9,7 @@ class SimpleCodeHighlighterConfigurable : Configurable {
     private var settingsComponent: SimpleCodeHighlighterSettingsComponent? = null
 
     override fun getDisplayName(): String {
-        return "Simple Code Highlighter"
+        return "CoDecorator"
     }
 
     override fun getPreferredFocusedComponent(): JComponent? {

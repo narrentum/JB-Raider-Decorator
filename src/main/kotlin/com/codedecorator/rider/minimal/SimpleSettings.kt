@@ -16,6 +16,9 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings> {
     // Список всех правил подсветки
     var rules: MutableList<HighlightRule> = HighlightRule.createDefault().toMutableList()
     
+    // Задержка в миллисекундах для throttling обновлений подсветки
+    var throttleDelayMs: Int = 5000
+    
     override fun getState(): SimpleSettings = this
     
     override fun loadState(state: SimpleSettings) {

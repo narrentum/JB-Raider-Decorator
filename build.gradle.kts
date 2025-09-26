@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.codedecorator"
-version = "1.3.4" // v1.3.4 - Fixed checkbox alignment during editing (center-aligned editor)
+version = "1.3.6" // v1.3.4 - Fixed checkbox alignment during editing (center-aligned editor)
 
 repositories {
     mavenCentral()

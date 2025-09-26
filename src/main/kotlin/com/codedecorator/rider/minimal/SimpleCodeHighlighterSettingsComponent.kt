@@ -13,6 +13,7 @@ class SimpleCodeHighlighterSettingsComponent {
     private val mainPanel: JPanel = JPanel(BorderLayout())
     private var table: JTable? = null
     private var tableModel: DefaultTableModel? = null
+    private var throttleField: JSpinner? = null
 
     init {
         createUI()
@@ -160,12 +161,24 @@ class SimpleCodeHighlighterSettingsComponent {
         buttonPanel.add(removeButton)
         buttonPanel.add(resetButton)
         
+        // Create top panel with title and throttle settings
+        val topPanel = JPanel(BorderLayout())
+        
         // Add title
-        val titleLabel = JLabel("Simple Code Highlighter Rules")
+        val titleLabel = JLabel("CoDecorator Rules")
         titleLabel.font = titleLabel.font.deriveFont(14f)
+        topPanel.add(titleLabel, BorderLayout.WEST)
+        
+        // Add throttle settings
+        val throttlePanel = JPanel()
+        throttlePanel.add(JLabel("Update delay (ms):"))
+        throttleField = JSpinner(SpinnerNumberModel(5000, 100, 60000, 100))
+        throttleField!!.preferredSize = Dimension(100, 25)
+        throttlePanel.add(throttleField)
+        topPanel.add(throttlePanel, BorderLayout.EAST)
         
         // Layout
-        mainPanel.add(titleLabel, BorderLayout.NORTH)
+        mainPanel.add(topPanel, BorderLayout.NORTH)
         mainPanel.add(scrollPane, BorderLayout.CENTER)
         mainPanel.add(buttonPanel, BorderLayout.SOUTH)
         
@@ -176,6 +189,9 @@ class SimpleCodeHighlighterSettingsComponent {
     private fun loadRulesFromSettings() {
         val settings = SimpleSettings.getInstance()
         println("[DEBUG] Loading ${settings.rules.size} rules into table")
+        
+        // Загружаем значение throttle в UI
+        throttleField!!.value = settings.throttleDelayMs
         
         // Temporarily disable table listener to avoid cycles
         val listeners = tableModel!!.tableModelListeners
@@ -255,6 +271,8 @@ class SimpleCodeHighlighterSettingsComponent {
 
     fun apply(settings: SimpleSettings) {
         applyTableToSettings(settings)
+        // Сохранить настройку throttle
+        settings.throttleDelayMs = throttleField!!.value as Int
         refreshAllProjectHighlighting()
     }
     
@@ -325,5 +343,7 @@ class SimpleCodeHighlighterSettingsComponent {
     fun reset(settings: SimpleSettings) {
         // Load actual settings into table
         loadRulesFromSettings()
+        // Загрузить настройку throttle
+        throttleField!!.value = settings.throttleDelayMs
     }
 }
