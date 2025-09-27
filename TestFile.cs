@@ -18,9 +18,16 @@ public class TestClass
         // TODO: [Fixed] This task is completed
         // TODO: [QA] This needs review
         // TODO: [InProgress] Currently working on this
-        
+
+       
         console.log("Testing console output");
         console.error("Testing error output");
+
+        _this.Main();
+
+        _this.Main();
+        
+        //TODO: [InProgress] This is an ongoing task
         
         // [CRITICAL] This is a critical comment
         // [URGENT] This needs immediate attention

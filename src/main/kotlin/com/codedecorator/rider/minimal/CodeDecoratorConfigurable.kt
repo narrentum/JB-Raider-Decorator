@@ -4,9 +4,9 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import javax.swing.*
 
-class SimpleCodeHighlighterConfigurable : Configurable {
+class CodeDecoratorConfigurable : Configurable {
 
-    private var settingsComponent: SimpleCodeHighlighterSettingsComponent? = null
+    private var settingsComponent: CodeDecoratorSettings? = null
 
     override fun getDisplayName(): String {
         return "CoDecorator"
@@ -17,24 +17,24 @@ class SimpleCodeHighlighterConfigurable : Configurable {
     }
 
     override fun createComponent(): JComponent? {
-        settingsComponent = SimpleCodeHighlighterSettingsComponent()
+        settingsComponent = CodeDecoratorSettings()
         return settingsComponent?.getPanel()
     }
 
     override fun isModified(): Boolean {
-        val settings = SimpleSettings.getInstance()
-        return settingsComponent?.isModified(settings) ?: false
+    val settings = SimpleSettings.getInstance()
+    return settingsComponent?.isModified(settings) ?: false
     }
 
     @Throws(ConfigurationException::class)
     override fun apply() {
-        val settings = SimpleSettings.getInstance()
-        settingsComponent?.apply(settings)
+    val settings = SimpleSettings.getInstance()
+    settingsComponent?.apply(settings)
     }
 
     override fun reset() {
-        val settings = SimpleSettings.getInstance()
-        settingsComponent?.reset(settings)
+    val settings = SimpleSettings.getInstance()
+    settingsComponent?.reset(settings)
     }
 
     override fun disposeUIResources() {

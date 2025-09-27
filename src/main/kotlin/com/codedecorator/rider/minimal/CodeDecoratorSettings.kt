@@ -6,20 +6,24 @@ import javax.swing.*
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
 
-class SimpleCodeHighlighterSettingsComponent {
+class CodeDecoratorSettings {
     private val mainPanel: JPanel = JPanel(BorderLayout())
     private var tableModel: DefaultTableModel? = null
     private var table: JTable? = null
     private var throttleField: JSpinner? = null
+    private var conditionLinesField: JSpinner? = null
+    private var wholeFileCheck: JCheckBox? = null
+    // remember last positive value so we can restore when unchecking
+    private var lastPositiveConditionLines: Int = 200
 
     init {
-        println("[DEBUG] SimpleCodeHighlighterSettingsComponent constructor called")
+    // println("[DEBUG] CodeDecoratorSettings constructor called")
         createUI()
-        println("[DEBUG] SimpleCodeHighlighterSettingsComponent constructor finished")
+    // println("[DEBUG] CodeDecoratorSettings constructor finished")
     }
 
     private fun createUI() {
-        println("[DEBUG] Starting createUI()")
+        // println("[DEBUG] Starting createUI()")
         
         // Create table model with all 8 columns
         val columnNames = arrayOf(
@@ -44,7 +48,7 @@ class SimpleCodeHighlighterSettingsComponent {
         // Load actual rules from settings
         loadRulesFromSettings()
         
-        println("[DEBUG] Rules loaded: ${tableModel!!.rowCount} rows")
+        // println("[DEBUG] Rules loaded: ${tableModel!!.rowCount} rows")
         
         // Create table
         table = JTable(tableModel)
@@ -65,26 +69,34 @@ class SimpleCodeHighlighterSettingsComponent {
         titleLabel.font = titleLabel.font.deriveFont(16f)
         titleLabel.horizontalAlignment = SwingConstants.CENTER
         
+        // Create throttle settings panel
+        val throttlePanel = createThrottleSettingsPanel()
+        
+        // Combine title and throttle settings into north panel
+        val northPanel = JPanel(BorderLayout())
+        northPanel.add(titleLabel, BorderLayout.NORTH)
+        northPanel.add(throttlePanel, BorderLayout.SOUTH)
+        
         // Layout
-        mainPanel.add(titleLabel, BorderLayout.NORTH)
+        mainPanel.add(northPanel, BorderLayout.NORTH)
         mainPanel.add(scrollPane, BorderLayout.CENTER)
         mainPanel.add(buttonPanel, BorderLayout.SOUTH)
         
         // Add padding
         mainPanel.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
         
-        println("[DEBUG] UI creation complete with full functionality")
+        // println("[DEBUG] UI creation complete with full functionality")
     }
 
     private fun loadRulesFromSettings() {
         val settings = SimpleSettings.getInstance()
-        println("[DEBUG] Loading ${settings.rules.size} rules from settings")
+        // println("[DEBUG] Loading ${settings.rules.size} rules from settings")
         
         tableModel!!.setRowCount(0) // Clear existing rows
         
         for ((index, rule) in settings.rules.withIndex()) {
             try {
-                println("[DEBUG] Loading rule $index: ${rule.name}, enabled=${rule.enabled}")
+                // println("[DEBUG] Loading rule $index: ${rule.name}, enabled=${rule.enabled}")
                 tableModel!!.addRow(arrayOf(
                     rule.enabled,
                     rule.name,
@@ -96,7 +108,7 @@ class SimpleCodeHighlighterSettingsComponent {
                     rule.textDecoration.displayName
                 ))
             } catch (e: Exception) {
-                println("[ERROR] Failed to load rule $index: ${e.message}")
+                // println("[ERROR] Failed to load rule $index: ${e.message}")
                 // Add safe fallback row
                 tableModel!!.addRow(arrayOf(
                     true,
@@ -111,15 +123,94 @@ class SimpleCodeHighlighterSettingsComponent {
             }
         }
         
-        println("[DEBUG] Table now has ${tableModel!!.rowCount} rows")
+        // println("[DEBUG] Table now has ${tableModel!!.rowCount} rows")
+    }
+
+    private fun createThrottleSettingsPanel(): JPanel {
+        val panel = JPanel(FlowLayout(FlowLayout.LEFT, 10, 5))
+        panel.border = BorderFactory.createTitledBorder("Performance Settings")
+        
+        val throttleLabel = JLabel("Highlight update delay (ms):")
+        
+        // Create spinner with model for throttle delay (50ms to 60000ms = 1 minute)
+        val throttleModel = SpinnerNumberModel(5000, 50, 60000, 250)
+        throttleField = JSpinner(throttleModel)
+        throttleField!!.preferredSize = Dimension(80, 25)
+        
+        // Add tooltip
+        throttleField!!.toolTipText = "Delay between highlight updates. Higher values reduce CPU usage but slower response."
+        throttleLabel.toolTipText = "Minimum time between highlight updates to prevent excessive CPU usage"
+        
+        // Load current value from settings
+        val settings = SimpleSettings.getInstance()
+        throttleField!!.value = settings.throttleDelayMs
+        
+        val helpLabel = JLabel("(50ms - 60000ms, recommended: 1000-5000ms)")
+        helpLabel.font = helpLabel.font.deriveFont(Font.ITALIC, helpLabel.font.size - 1f)
+        helpLabel.foreground = Color.GRAY
+        
+        panel.add(throttleLabel)
+        panel.add(throttleField!!)
+    // Condition search lines spinner
+    val condLabel = JLabel("Lines to search for rule conditions:")
+        // Allow -1 to represent "search whole file" (per product requirement)
+        val condModel = SpinnerNumberModel(200, -1, 5000, 10)
+        conditionLinesField = JSpinner(condModel)
+    conditionLinesField!!.preferredSize = Dimension(80, 25)
+    conditionLinesField!!.toolTipText = "Only search for rule.condition within the first N lines of the file. Use checkbox or set -1 to search whole file."
+    // Load current value
+        val curVal = settings.conditionSearchLines
+        // initialize checkbox and spinner state
+        wholeFileCheck = JCheckBox("Search whole file")
+        wholeFileCheck!!.toolTipText = "When checked, condition search will scan the whole document (spinner will be -1)."
+        if (curVal <= 0) {
+            // whole-file mode
+            wholeFileCheck!!.isSelected = true
+            conditionLinesField!!.value = -1
+            conditionLinesField!!.isEnabled = false
+        } else {
+            wholeFileCheck!!.isSelected = false
+            conditionLinesField!!.value = curVal
+            conditionLinesField!!.isEnabled = true
+            lastPositiveConditionLines = curVal
+        }
+
+        wholeFileCheck!!.addActionListener {
+            val sel = wholeFileCheck!!.isSelected
+            if (sel) {
+                // set spinner to -1 and disable
+                conditionLinesField!!.value = -1
+                conditionLinesField!!.isEnabled = false
+            } else {
+                // restore last positive or default
+                val restore = if (lastPositiveConditionLines > 0) lastPositiveConditionLines else 200
+                conditionLinesField!!.value = restore
+                conditionLinesField!!.isEnabled = true
+            }
+        }
+
+        // remember last positive value when spinner changes
+        conditionLinesField!!.addChangeListener(javax.swing.event.ChangeListener {
+            val valInt = (conditionLinesField!!.value as? Int) ?: -1
+            if (valInt > 0) {
+                lastPositiveConditionLines = valInt
+            }
+        })
+
+        panel.add(condLabel)
+        panel.add(conditionLinesField!!)
+        panel.add(wholeFileCheck!!)
+        panel.add(helpLabel)
+        
+        return panel
     }
 
     fun getPanel(): JComponent {
-        println("[DEBUG] getPanel() called. MainPanel component count: ${mainPanel.componentCount}")
-        for (i in 0 until mainPanel.componentCount) {
-            val component = mainPanel.getComponent(i)
-            println("[DEBUG] Component $i: ${component.javaClass.simpleName}")
-        }
+        // println("[DEBUG] getPanel() called. MainPanel component count: ${mainPanel.componentCount}")
+        // for (i in 0 until mainPanel.componentCount) {
+        //     val component = mainPanel.getComponent(i)
+        //     println("[DEBUG] Component $i: ${component.javaClass.simpleName}")
+        // }
         return mainPanel
     }
 
@@ -128,6 +219,14 @@ class SimpleCodeHighlighterSettingsComponent {
     }
 
     fun isModified(settings: SimpleSettings): Boolean {
+        // Check throttle delay setting
+        val throttleValue = throttleField?.value as? Int ?: settings.throttleDelayMs
+        if (throttleValue != settings.throttleDelayMs) {
+            return true
+        }
+        val condValue = conditionLinesField?.value as? Int ?: settings.conditionSearchLines
+        if (condValue != settings.conditionSearchLines) return true
+        
         // Check if row count differs
         if (tableModel!!.rowCount != settings.rules.size) {
             return true
@@ -151,13 +250,37 @@ class SimpleCodeHighlighterSettingsComponent {
     }
 
     fun apply(settings: SimpleSettings) {
-        println("[DEBUG] Apply called - saving ${tableModel!!.rowCount} rules")
+        // println("[DEBUG] Apply called - saving ${tableModel!!.rowCount} rules")
+        
+        // Save throttle delay setting
+        val throttleValue = throttleField?.value as? Int ?: settings.throttleDelayMs
+        settings.throttleDelayMs = throttleValue
+    val condValue = conditionLinesField?.value as? Int ?: settings.conditionSearchLines
+    settings.conditionSearchLines = condValue
+        // println("[DEBUG] Applied throttle delay: ${throttleValue}ms")
+        
         applyTableToSettings(settings)
         refreshAllProjectHighlighting()
     }
 
     fun reset(settings: SimpleSettings) {
-        println("[DEBUG] Reset called")
+        // println("[DEBUG] Reset called")
+        
+        // Reset throttle field to current settings value
+        throttleField?.value = settings.throttleDelayMs
+        val curVal = settings.conditionSearchLines
+        if (curVal <= 0) {
+            wholeFileCheck?.isSelected = true
+            conditionLinesField?.value = -1
+            conditionLinesField?.isEnabled = false
+        } else {
+            wholeFileCheck?.isSelected = false
+            conditionLinesField?.value = curVal
+            conditionLinesField?.isEnabled = true
+            lastPositiveConditionLines = curVal
+        }
+        // println("[DEBUG] Reset throttle delay to: ${settings.throttleDelayMs}ms")
+        
         loadRulesFromSettings()
     }
 
@@ -264,7 +387,7 @@ class SimpleCodeHighlighterSettingsComponent {
 
     private fun applyTableToSettings(settings: SimpleSettings) {
         settings.rules.clear()
-        println("[DEBUG] Converting ${tableModel!!.rowCount} table rows to rules")
+        // println("[DEBUG] Converting ${tableModel!!.rowCount} table rows to rules")
         
         for (i in 0 until tableModel!!.rowCount) {
             try {
@@ -308,7 +431,7 @@ class SimpleCodeHighlighterSettingsComponent {
                 settings.rules.add(rule)
                 
             } catch (e: Exception) {
-                println("[ERROR] Failed to apply row $i: ${e.message}")
+                // println("[ERROR] Failed to apply row $i: ${e.message}")
             }
         }
     }
@@ -316,7 +439,11 @@ class SimpleCodeHighlighterSettingsComponent {
     private fun refreshAllProjectHighlighting() {
         val projects = ProjectManager.getInstance().openProjects
         for (project in projects) {
-            val highlighterComponent = project.getComponent(DirectHighlighterComponent::class.java)
+            val highlighterComponent = try {
+                DirectHighlighterComponent.getInstance(project)
+            } catch (_: Exception) {
+                null
+            }
             highlighterComponent?.refreshAllHighlighting()
         }
     }

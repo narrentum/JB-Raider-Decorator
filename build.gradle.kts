@@ -1,53 +1,123 @@
-plugins {
-    id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.2.0"
-    id("org.jetbrains.intellij") version "1.17.2"
-}
+import java.util.Properties
+import org.jetbrains.intellij.platform.gradle.tasks.PatchPluginXmlTask
 
-group = "com.codedecorator"
-version = "1.3.8" // v1.3.8 - Full settings functionality restored (8 columns with colors, fonts, decorations)
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "2.2.20"
+    id("org.jetbrains.intellij.platform") version "2.9.0"
+}
 
 repositories {
     mavenCentral()
+    intellijPlatform { defaultRepositories() }
 }
 
-// Use JDK 17 for IntelliJ Platform compatibility
-java {
-    sourceCompatibility = JavaVersion.VERSION_17  // IntelliJ Platform requires JDK 17+
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-// Kotlin compilation for JDK 17+ compatibility  
+/**
+ * JDK 17. В 2.9.0 надёжнее указать toolchain через Kotlin DSL:
+ */
 kotlin {
     jvmToolchain(17)
 }
 
-intellij {
-    version.set("2024.3") // Use stable IntelliJ IDEA 2024.3 for build compatibility
-    type.set("IC") // IntelliJ Community Edition for build
-    
-    // Don't specify specific plugin modules, use default platform capabilities
+/**
+ * Целевая IDE: Rider 2025.2.x — через локально установленную IDE.
+ * ВАЖНО: путь укажи с прямыми слэшами (или экранируй обратные), иначе "Illegal escape".
+ */
+dependencies {
+    implementation(kotlin("stdlib"))
+    testImplementation(kotlin("test"))
+
+    intellijPlatform {
+        // ЗАМЕНИ на свой фактический путь установки Rider:
+        // пример с прямыми слэшами:
+        local("C:/Program Files/JetBrains/JetBrains Rider 2025.2.2")
+        // или с экранированными бэкслэшами:
+        // local("C:\\Program Files\\JetBrains\\JetBrains Rider 2025.2.2")
+    }
 }
 
-tasks {
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+/**
+ * buildPlugin -> bumpPatchVersion
+ */
+tasks.named("buildPlugin") {
+    dependsOn("bumpPatchVersion")
+}
+
+/**
+ * Правим plugin.xml (since/until build для 252-й линейки, Rider 2025.2)
+ */
+tasks.named<PatchPluginXmlTask>("patchPluginXml") {
+    sinceBuild.set("252")
+    untilBuild.set("252.*")
+}
+
+/* ===================== Управление версией ===================== */
+
+fun readVersionFromGradleProps(): String {
+    val propsFile = rootProject.file("gradle.properties")
+    val props = Properties().apply { propsFile.inputStream().use { load(it) } }
+    return props.getProperty("version") ?: error("Property 'version' not found")
+}
+
+fun writeVersionToGradleProps(newVersion: String) {
+    val propsFile = rootProject.file("gradle.properties")
+    val props = Properties().apply { propsFile.inputStream().use { load(it) } }
+    props.setProperty("version", newVersion)
+    propsFile.outputStream().use { props.store(it, "Updated by bump task") }
+    project.version = newVersion
+    println("Version updated to: $newVersion")
+}
+
+data class Version4(val major: Int, val minor: Int, val patch: Int, val build: Int?) {
+    override fun toString(): String =
+        if (build != null) "$major.$minor.$patch.$build" else "$major.$minor.$patch"
+
+    companion object {
+        private val re = Regex("""^\s*(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?\s*$""")
+        fun parse(s: String): Version4 {
+            val m = re.matchEntire(s) ?: error("Unsupported version format: '$s'")
+            val (a, b, c, d) = m.destructured
+            return Version4(a.toInt(), b.toInt(), c.toInt(), d.ifEmpty { null }?.toInt())
         }
     }
+}
 
-    patchPluginXml {
-        sinceBuild.set("243") // IntelliJ/Rider 2024.3+  
-        untilBuild.set("252.*") // Up to Rider 2025.2.x (includes your 2025.2.2)
+fun bumpPatch(v: Version4) = v.copy(patch = v.patch + 1, build = null)
+fun bumpMinor(v: Version4) = v.copy(minor = v.minor + 1, patch = 0, build = null)
+fun bumpMajor(v: Version4) = v.copy(major = v.major + 1, minor = 0, patch = 0, build = null)
+fun bumpBuild(v: Version4) = v.copy(build = (v.build ?: 0) + 1)
+
+tasks.register("bumpPatchVersion") {
+    group = "versioning"
+    description = "Increment patch (X.Y.Z -> X.Y.(Z+1))"
+    doLast {
+        val cur = Version4.parse(readVersionFromGradleProps())
+        writeVersionToGradleProps(bumpPatch(cur).toString())
     }
+}
 
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+tasks.register("bumpMinorVersion") {
+    group = "versioning"
+    description = "Increment minor (X.Y.Z -> X.(Y+1).0)"
+    doLast {
+        val cur = Version4.parse(readVersionFromGradleProps())
+        writeVersionToGradleProps(bumpMinor(cur).toString())
     }
+}
 
-    publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+tasks.register("bumpMajorVersion") {
+    group = "versioning"
+    description = "Increment major ((X+1).0.0)"
+    doLast {
+        val cur = Version4.parse(readVersionFromGradleProps())
+        writeVersionToGradleProps(bumpMajor(cur).toString())
+    }
+}
+
+tasks.register("bumpBuildNumber") {
+    group = "versioning"
+    description = "Increment 4th component (X.Y.Z.B -> X.Y.Z.(B+1))"
+    doLast {
+        val cur = Version4.parse(readVersionFromGradleProps())
+        writeVersionToGradleProps(bumpBuild(cur).toString())
     }
 }

@@ -1,6 +1,9 @@
 <idea-plugin>
+    <version>1.3.40</version>
+    <idea-version since-build="231.8109" until-build="252.*" />
     <id>com.codedecorator.rider</id>
     <name>CoDecorator</name>
+    <icon>icons/pluginIcon.png</icon>
     <vendor email="narrentum@github.com">Code Decorator</vendor>
 
     <description><![CDATA[
@@ -31,7 +34,7 @@
         <applicationService serviceImplementation="com.codedecorator.rider.minimal.SimpleSettings"/>
         <applicationConfigurable 
             parentId="tools" 
-            instance="com.codedecorator.rider.minimal.SimpleCodeHighlighterConfigurable" 
+            instance="com.codedecorator.rider.minimal.CodeDecoratorConfigurable" 
             id="com.codedecorator.rider.configurable" 
             displayName="CoDecorator"/>
     </extensions>

@@ -18,6 +18,12 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings> {
     
     // Задержка в миллисекундах для throttling обновлений подсветки
     var throttleDelayMs: Int = 5000
+    // Количество строк, в пределах которых ищутся условия правил (по умолчанию - 200)
+    var conditionSearchLines: Int = 200
+    // Включить отладочные сообщения для событий документа (полезно для проверки paste/undo/cut)
+    var debugEvents: Boolean = false
+    // Применять частичные результаты по мере завершения правил (true) или ждать выполнения всех правил (false)
+    var applyPartialOnRuleComplete: Boolean = true
     
     override fun getState(): SimpleSettings = this
     
