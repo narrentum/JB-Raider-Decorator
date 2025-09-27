@@ -33,3 +33,22 @@ Thumbs.db
 build/distributions/
 build/libs/
 build/tmp/
+
+# Rider / IntelliJ local platform artifacts and sandbox
+.intellijPlatform/
+idea-sandbox/
+
+# Local instrumented or generated folders
+instrumented/
+
+# Distribution and packed outputs
+release/
+distributions/
+libs/
+
+# Java crash dumps
+java_pid*.hprof
+
+# Local test outputs we don't want in repo
+test.cs
+test1.cs
