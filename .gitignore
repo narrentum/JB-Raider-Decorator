@@ -48,6 +48,7 @@ libs/
 
 # Java crash dumps
 java_pid*.hprof
+*.hprof
 
 # Local test outputs we don't want in repo
 test.cs
