@@ -69,28 +69,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
     private val edtFactory 					= EditorFactory.getInstance()
     private val application 				= ApplicationManager.getApplication()
 
-
-    private val lastHLValidKey 				= ConcurrentHashMap<Editor, Boolean>()
-    private val lastHLUserKey 				= ConcurrentHashMap<Editor, Long>()
-    private val lastHLTime 					= ConcurrentHashMap<Editor, Long>()
-
-    private val lastHLDocChange 			= ConcurrentHashMap<Editor, Long>()
-
-	private val inFlightFlag 				= ConcurrentHashMap<Editor, java.util.concurrent.atomic.AtomicBoolean>()
-	private val pendingFlag 				= ConcurrentHashMap<Editor, java.util.concurrent.atomic.AtomicBoolean>()
-	
-    private val generationMap 				= ConcurrentHashMap<Editor, AtomicInteger>()
-    private val runningFutures 				= ConcurrentHashMap<Editor, MutableList<Future<*>>>()
-    private val activeHLs 					= ConcurrentHashMap<Editor, MutableList<RangeHighlighter>>()
-    private val runningTasks 				= ConcurrentHashMap<Editor, ConcurrentHashMap<String, Future<*>>>()
-
-    private val settings 					= SimpleSettings.getInstance()
-    private val enabledRules 				= settings.getEnabledRules()
-
-	private var _updateInfo: UpdateInfo 	= UpdateInfo(false, null)
-
-    // private val overlayManager 			= OverlayManager(project)
- 	// Overlay is disabled: provide a local no-op stub with the same methods used in this file.
+    // Overlay is disabled: provide a local no-op stub with the same methods used in this file.
     // This avoids changing dozens of call sites while completely disabling UI overlays.
     private val overlayManager = object {
         fun removeOverlayImmediate(editor: Editor?) {}
@@ -105,6 +84,21 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
         fun incrementCompleted(editor: Editor?) {}
         fun setTotalRules(editor: Editor?, total: Int) {}
     }
+
+
+    private val lastHLTime 					= ConcurrentHashMap<Editor, Long>()
+    private val lastDocChangeAtPerEditor 	= ConcurrentHashMap<Editor, Long>()
+	private val inFlightFlag 				= ConcurrentHashMap<Editor, java.util.concurrent.atomic.AtomicBoolean>()
+	private val pendingFlag 				= ConcurrentHashMap<Editor, java.util.concurrent.atomic.AtomicBoolean>()
+	
+    private val generationMap 				= ConcurrentHashMap<Editor, AtomicInteger>()
+    private val runningFutures 				= ConcurrentHashMap<Editor, MutableList<Future<*>>>()
+    private val activeHLs 					= ConcurrentHashMap<Editor, MutableList<RangeHighlighter>>()
+    private val runningTasks 				= ConcurrentHashMap<Editor, ConcurrentHashMap<String, Future<*>>>()
+    private val settings 					= SimpleSettings.getInstance()
+    private val enabledRules 				= settings.getEnabledRules()
+
+	private var _updateInfo: UpdateInfo 	= UpdateInfo(false, null)
     
     private val editorFactoryListener 		= object : EditorFactoryListener
                                             {
@@ -144,7 +138,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
                                                 override fun commandFinished(event: CommandEvent) 
                                                 {
 													var editor 			= _FEM.getInstance(project).selectedTextEditor
-													val lastDocChange 	= lastHLDocChange[editor] ?: 0L
+													val lastDocChange 	= lastDocChangeAtPerEditor[editor] ?: 0L
 													val dt  			= System.currentTimeMillis() - lastDocChange
                                                     val isUndoRedo 		= event.commandName?.lowercase()?.contains("undo") == true || event.commandName?.lowercase()?.contains("redo") == true
                                                     
@@ -154,7 +148,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
 														if (editor != null)
 														{
-															 requestRedraw(editor, isUndoRedo)
+															 requestRedraw(editor)
 														}
                                                     } 
                                                 }
@@ -188,49 +182,6 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
                                                 }
                                             }
 
-	// Только для важных клавиш (вставка, удаление, ввод, таб, ctrl+z/y/x/v) - обновляет время ввода пользователем
-    private val keyEventDispatcher         = java.awt.KeyEventDispatcher { 
-		
-												e -> try 
-												{
-													if (e.id != java.awt.event.KeyEvent.KEY_PRESSED) 
-													{
-														return@KeyEventDispatcher false
-													}
-
-													val fem 					= com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project)
-													val sel 					= fem.selectedTextEditor
-
-													if (sel != null && sel.project == project) 
-													{
-														_UpdateLastUserKeyPress (sel, e.keyCode, e.modifiersEx)
-													}
-												} 
-												catch (ex: Exception) 
-												{
-													LOG.warn 					("[DHC]: globalKeyDispatcher outer", ex)
-												}
-
-												false
-											}
-
-	private fun _UpdateLastUserKeyPress(e: Editor, keyCode: Int, modifiersEx: Int) 
-	{
-		// val _hash 						= try { e.document.hashCode() } catch (_: Exception) {0}
-		// LOG.info 						("[DHC]: Keypress key=$keyCode, editor=${_hash}")
-
-		val isCtrl 							= (modifiersEx and java.awt.event.KeyEvent.CTRL_DOWN_MASK) != 0
-		lastHLValidKey[e] 					= when (keyCode) 
-											{
-												_Key.VK_DELETE, _Key.VK_BACK_SPACE, _Key.VK_ENTER, _Key.VK_TAB -> true
-												_Key.VK_V, _Key.VK_X, _Key.VK_Z, _Key.VK_Y -> isCtrl
-												else -> false
-											}
-
-		lastHLUserKey[e] 					= System.currentTimeMillis()
-	}
-
-
     init 
     {
         edtFactory.addEditorFactoryListener (editorFactoryListener, project)
@@ -238,49 +189,9 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
         this._AttachDocListeners            ()
         this._AttachCmdFinishedListener     ()
         this._AttachEditorSelectionListener ()
-		this._AttachKeyListeners            ()
 
         LOG.info                             ("[DHC]: Plugin initialized")
     }
-
-	private fun _AttachKeyListeners()
-	{
-		try 
-		{
-			try 
-			{
-				val kfm 					= java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager()
-
-				kfm.addKeyEventDispatcher	(keyEventDispatcher)
-
-				LOG.info					("[DHC]: AttachKeyListeners - registered global KeyEventDispatcher")
-			} 
-			catch (ex: Exception) 
-			{
-				LOG.warn					("[DHC]: AttachKeyListeners - registering global KeyEventDispatcher", ex)
-			}
-		} 
-		catch (ex: Exception) 
-		{
-			LOG.warn						("[DHC]: AttachKeyListeners - outer registering global KeyEventDispatcher", ex)
-		}
-	}
-
-	private fun _ClearKeyListeners()
-	{
-        try 
-		{
-			val kfm 						= java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager()
-
-			kfm.removeKeyEventDispatcher	(keyEventDispatcher)
-
-			LOG.info						("[DHC]: dispose - removed global KeyEventDispatcher")
-        } 
-		catch (ex: Exception) 
-		{
-            LOG.warn						("[DHC]: dispose - outer remove dispatcher", ex)
-        }
-	}
 
     private fun _AttachDocListeners()
     {
@@ -340,7 +251,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 													// 2.1 Быстрая локальная инвалидация на затронутых строках
         											invalidateHighlightsOnChangedLines(editor, event)
 
-        											lastHLDocChange[editor] = System.currentTimeMillis()
+        											lastDocChangeAtPerEditor[editor] = System.currentTimeMillis()
 
 													LOG.info			("[DHC]: documentListener: Redraw: Request...")
 													requestRedraw		(editor)
@@ -435,24 +346,17 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 	}
 
 	// Единая точка запроса перерисовки
-	private fun requestRedraw(editor: Editor, undoRedo: Boolean = false) 
+	private fun requestRedraw(editor: Editor) 
 	{
-		if (isChangesFromInvalidKey(editor))	return
-		if (isChangesNotFromKeyboard(editor))	return
-		
 		val editorHash 						= editor.document.hashCode()
 
 		redrawQueue.queue(object : Update("DHC-Redraw-$editorHash") 
 		{
-			override fun run() 
-			{
-				if (undoRedo)
-				{
-					_Highlight_Apply		(editor)
-					lastHLTime[editor] 		= System.currentTimeMillis()
+			override fun run() {
+				// гейт по «свежести» ввода (documentChanged)
+				val dt 						= System.currentTimeMillis() - (lastDocChangeAtPerEditor[editor] ?: 0L)
 
-					return;
-				}
+				if (dt >= 1000L) 			return
 
 				val flag 					= inFlightFlag.computeIfAbsent(editor) { java.util.concurrent.atomic.AtomicBoolean(false) }
 				val pending 				= pendingFlag.computeIfAbsent(editor) { java.util.concurrent.atomic.AtomicBoolean(false) }
@@ -467,6 +371,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 				try 
 				{
 					_Highlight_Apply		(editor)
+
 					lastHLTime[editor] 		= System.currentTimeMillis()
 				} 
 				finally 
@@ -481,25 +386,6 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 				}
  			}
 		})
-	}
-	
-	// helper: likely-from-keyboard?
-	private fun isChangesFromInvalidKey(editor: Editor): Boolean 
-	{
-		return lastHLValidKey[editor] == false
-	}
-	
-	// helper: likely-from-keyboard?
-	private fun isChangesFromKeyboard(editor: Editor): Boolean 
-	{
-		val ts = lastHLUserKey[editor] ?: return false
-		return (System.currentTimeMillis() - ts) <= 1000L // window configurable
-	}
-	
-	// helper: likely-from-keyboard?
-	private fun isChangesNotFromKeyboard(editor: Editor): Boolean 
-	{
-		return !isChangesFromKeyboard(editor)
 	}
 
     private fun _Highlight_Apply(editor: Editor) 
@@ -569,9 +455,10 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
         val startTime 						= System.currentTimeMillis()
 
         // Read text and line count in one read action
-        val (text, lineCount) = application.runReadAction<Pair<String, Int>> {
-            document.text to document.lineCount
-        }
+        // стало — без копии строки
+		val (text, lineCount) 				= application.runReadAction<Pair<CharSequence, Int>> {
+			document.immutableCharSequence to document.lineCount
+		}
 
         application.invokeLater {
             try { overlayManager.prepareOverlay(editor, enabledRules.size) } catch (_: Exception) {}
@@ -581,22 +468,23 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
         // Prepare condition search window
         val conditionLinesLimit             = settings.conditionSearchLines
-        val conditionWindowText: String? 	= if (conditionLinesLimit <= 0) null else substringByLines(text, conditionLinesLimit)
-        val hayForConditionSearch: String 	= conditionWindowText ?: text
+		
+        val conditionWindowText 			: CharSequence? = if (conditionLinesLimit <= 0) null else substringByLines(text, conditionLinesLimit)
+		val hayForConditionSearch 			: CharSequence 	= conditionWindowText ?: text
 
-        // Per-rule condition (key) detection
-        val ruleConditionFound 				= ConcurrentHashMap<String, Boolean>()
-        val rulesWithCondition 				= enabledRules.filter { try { it.condition.trim().isNotEmpty() } catch (_: Exception) { false } }
+		val ruleConditionFound 				= java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+		val rulesWithCondition 				= enabledRules.filter { it.condition.trim().isNotEmpty() }
         
         if (rulesWithCondition.isNotEmpty()) 
         {
-            this._RuleKeySearch                (editor, hayForConditionSearch, rulesWithCondition, ruleConditionFound)
+            this._RuleKeySearch				(editor, hayForConditionSearch, rulesWithCondition, ruleConditionFound)
         }
 
-        this._FileChunkedSearch                (editor, text, lineCount, conditionWindowText, enabledRules, ruleConditionFound, results)
+        this._FileChunkedSearch 			(editor, text, lineCount, enabledRules, ruleConditionFound, results)
+        // this._FileChunkedSearch 			(editor, text, lineCount, conditionWindowText, enabledRules, ruleConditionFound, results)
 
         // Apply accumulated results on EDT if still current
-        val currentGen                         = generationMap[editor]?.get() ?: gen
+        val currentGen 						= generationMap[editor]?.get() ?: gen
 
         application.invokeLater {
 
@@ -794,18 +682,21 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
     override fun dispose() 
     {
-   		lastHLValidKey 			.clear()
-   		lastHLTime 				.clear()
+        // Cleanup when project/service disposed
+        try 
+        {
+            // Listener was registered with project as the parent Disposable (see addEditorFactoryListener(..., project)).
+            // EditorFactory will automatically unregister this listener when the project is disposed,
+            // so calling the deprecated removeEditorFactoryListener is unnecessary.
+            // edtFactory.removeEditorFactoryListener(editorFactoryListener) // intentionally omitted
+        } 
+        catch (ex: Exception) 
+		{ 
+			LOG.warn			("[DHC]: dispose - removeEditorFactoryListener", ex) 
+		}
 
-   		lastHLDocChange 		.clear()
-
-		inFlightFlag 			.clear()
-		pendingFlag 			.clear()
-
-   		generationMap 			.clear()
-   		runningFutures 			.clear()
-   		activeHLs 				.clear()
-   		runningTasks 			.clear()
+        activeHLs.clear			()
+        lastHLTime.clear				()
     }
 
     companion object {
@@ -1026,6 +917,25 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
         return matches
     }
+	
+	private fun findAllMatches(text: CharSequence, target: CharSequence): List<TextRange> 
+	{
+		val out 				= mutableListOf<TextRange>()
+		val s 					= target.toString()
+		var idx 				= 0
+
+		while (true) 
+		{
+			idx 				= text.indexOf(s, startIndex = idx)   // теперь ок
+
+			if (idx < 0) 		break
+
+			out.add				(TextRange(idx, idx + s.length))
+
+			idx 				+= s.length
+		}
+		return out
+	}
     
     private fun findCommentMatches(text: String, commentPattern: String): List<TextRange> 
     {
@@ -1059,6 +969,7 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
         return matches
     }
 
+	// ----- find: text: String -------------------------------------------
     // Overload: accept precompiled Regex for comment matching
     private fun findCommentMatches(text: String, commentRegex: Regex): List<TextRange> 
     {
@@ -1084,15 +995,15 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
         try 
         {
-            val regex 						= Regex                (regexPattern)
-            val matchResults 				= regex.findAll        (text)
+            val regex                         = Regex                (regexPattern)
+            val matchResults                 = regex.findAll        (text)
             
             for (matchResult in matchResults) 
             {
-                matches.add 				(TextRange(matchResult.range.first, matchResult.range.last + 1))
+                matches.add                    (TextRange(matchResult.range.first, matchResult.range.last + 1))
             }
         } 
-        catch (e: Exception) 	{ LOG.warn("[DHC]: findRegexMatches(pattern)", e) }
+        catch (e: Exception)     { LOG.warn("[DHC]: findRegexMatches(pattern)", e) }
 
         return matches
     }
@@ -1115,156 +1026,298 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
         return matches
     }
+	// --------------------------------------------------------------------
 
-    // Return substring consisting of first N lines (or whole text if N >= line count)
-    private fun substringByLines(text: String, linesLimit: Int): String 
-    {
-        if (linesLimit <= 0)                 return text
-            
-        var linesTaken 						= 0
-        var pos 							= 0
-        val len 							= text.length
+	// ----- find: text: CharSequence -------------------------------------------
+	// Поиск комментариев и регулярок в CharSequence (теперь без лишних конвертаций в String)
+	// Комментарии: паттерн-строка
+	private fun findCommentMatches(text: CharSequence, commentPattern: String): List<TextRange> 
+	{
+		val matches 						= mutableListOf<TextRange>()
 
-        while (pos < len && linesTaken < linesLimit) 
-        {
-            val next 						= text.indexOf('\n', pos)
+		return 	try 
+				{
+					// как и раньше: ищем строку целиком, затем уточняем внутри строки
+					val searchRegex  		= Regex(".*$commentPattern", RegexOption.MULTILINE)
+					val commentRegex 		= Regex(commentPattern)
 
-            if (next == -1) 
-            {
-                return text.substring(0, len)
-            } 
-            else 
-            {
-                pos                         = next + 1
+					for (sr in searchRegex.findAll(text)) 
+					{
+						val start 			= sr.range.first
+						val end   			= sr.range.last + 1
+						val line  			= text.subSequence(start, end)
+						val cm    			= commentRegex.find(line)
 
-                linesTaken++
-            }
-        }
+						if (cm != null) 
+						{
+							matches.add		(TextRange(start + cm.range.first, start + cm.range.last + 1))
+						}
+					}
+					matches
+				} 
+				catch (e: Exception) 
+				{
+					LOG.warn("[DHC]: findCommentMatches(CharSequence, pattern)", e)
+					matches
+				}
+	}
 
-        return if (pos >= len) text else text.substring(0, pos)
-    }
+	// Комментарии: уже скомпилированный Regex
+	private fun findCommentMatches(text: CharSequence, commentRegex: Regex): List<TextRange> 
+	{
+		val matches 						= mutableListOf<TextRange>()
+
+		return 	try 
+				{
+					for (res in commentRegex.findAll(text)) 
+					{
+						matches.add(TextRange(res.range.first, res.range.last + 1))
+					}
+
+					matches
+				} 
+				catch (e: Exception) 
+				{
+					LOG.warn("[DHC]: findCommentMatches(CharSequence, regex)", e)
+					matches
+				}
+	}
+
+	// Регулярка: паттерн-строка
+	private fun findRegexMatches(text: CharSequence, regexPattern: String): List<TextRange> 
+	{
+		return 	try 
+				{
+					findRegexMatches(text, Regex(regexPattern))
+				} 
+				catch (_: Exception) { emptyList() }
+	}
+
+	// Регулярка: Regex
+	private fun findRegexMatches(text: CharSequence, regex: Regex): List<TextRange> 
+	{
+		val out 							= mutableListOf<TextRange>()
+
+		return 	try 
+				{
+					for (m in regex.findAll(text)) 
+					{
+						out.add				(TextRange(m.range.first, m.range.last + 1))
+					}
+
+					out
+				} 
+				catch (e: Exception) 
+				{
+					LOG.warn("[DHC]: findRegexMatches(CharSequence, regex)", e)
+					out
+				}
+	}
+
+	private fun substringByLines(text: CharSequence, linesLimit: Int): CharSequence 
+	{
+		if (linesLimit <= 0) 	return text
+
+		var linesTaken			= 0
+		var pos 				= 0
+		val len 				= text.length
+
+		while (pos < len && linesTaken < linesLimit) 
+		{
+			val next 			= text.indexOf('\n', startIndex = pos)
+
+			if (next == -1) 
+			{
+				return text.subSequence(0, len)
+			}
+
+			pos 				= next + 1
+
+			linesTaken++
+		}
+		return if (pos >= len) text else text.subSequence(0, pos)
+	}
+
+	private fun _RuleKeySearch	(
+									editor				: Editor,
+									hay					: CharSequence, // было String
+									rulesWithCondition	: List<HighlightRule>,
+									ruleConditionFound	: ConcurrentHashMap<String, Boolean>
+								) 
+	{
+		try 
+		{
+			val keyExecutor      = AppExecutorUtil.getAppExecutorService()
+			val keyCompletion    = java.util.concurrent.ExecutorCompletionService<Pair<HighlightRule, Boolean>>(keyExecutor)
+			val keyFutures       = mutableListOf<java.util.concurrent.Future<*>>()
+
+			for (rule in rulesWithCondition) {
+				val rid = if (rule.id.isNotEmpty()) rule.id else rule.name.ifEmpty { rule.targetWord }
+				val callable = java.util.concurrent.Callable<Pair<HighlightRule, Boolean>> {
+					val cond = rule.condition.trim()
+					val found = try { hay.indexOf(cond.toString(), startIndex = 0) >= 0 } catch (_: Exception) { false }
+					rule to found
+				}
+				keyFutures.add(keyCompletion.submit(callable))
+
+				application.invokeLater {
+					try {
+						val tid = "key_${rid}"
+						overlayManager.showOrUpdateTaskOverlay(editor, tid, "Searching key for '${rule.name.ifEmpty { rule.targetWord }}'")
+					} catch (ex: Exception) { LOG.warn("[DHC]: _RuleKeySearch - showOrUpdateTaskOverlay", ex) }
+				}
+			}
+
+			var keyProcessed = 0
+
+			while (keyProcessed < keyFutures.size) 
+			{
+				try {
+					val completed     = keyCompletion.take()
+					val (rule, found) = try { completed.get() } catch (_: Exception) { null to false }
+					if (rule != null) {
+						val rid = if (rule.id.isNotEmpty()) rule.id else rule.name.ifEmpty { rule.targetWord }
+						ruleConditionFound[rid] = found
+						application.invokeLater {
+							try {
+								val tid = "key_${rid}"
+								if (!found) {
+									overlayManager.showOrUpdateTaskOverlay(editor, tid, "Key not found for '${rule.name.ifEmpty { rule.targetWord }}' — skipping")
+									javax.swing.Timer(1500) { try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {} }.apply { isRepeats = false; start() }
+								} else {
+									try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {}
+								}
+							} catch (ex: Exception) { LOG.warn("[DHC]: _RuleKeySearch - invokeLater", ex) }
+						}
+					}
+				} 
+				catch (_: Exception) {} 
+				finally { keyProcessed++ }
+			}
+		} 
+		catch (ex: Exception) { LOG.warn("[DHC]: _RuleKeySearch", ex) }
+	}
 
     // Search per-rule condition/key in the provided haystack and update ruleConditionFound map
-    private fun _RuleKeySearch(editor: Editor, hay: String, rulesWithCondition: List<HighlightRule>, ruleConditionFound: ConcurrentHashMap<String, Boolean>) 
-    {
-        try 
-        {
-            val keyExecutor 				= AppExecutorUtil.getAppExecutorService()
-            val keyCompletion 				= java.util.concurrent.ExecutorCompletionService<Pair<HighlightRule, Boolean>>(keyExecutor)
-            val keyFutures 					= mutableListOf<java.util.concurrent.Future<*>>()
+    // private fun _RuleKeySearch(editor: Editor, hay: String, rulesWithCondition: List<HighlightRule>, ruleConditionFound: ConcurrentHashMap<String, Boolean>) 
+    // {
+    //     try 
+    //     {
+    //         val keyExecutor 				= AppExecutorUtil.getAppExecutorService()
+    //         val keyCompletion 				= java.util.concurrent.ExecutorCompletionService<Pair<HighlightRule, Boolean>>(keyExecutor)
+    //         val keyFutures 					= mutableListOf<java.util.concurrent.Future<*>>()
 
-            for (rule in rulesWithCondition) 
-            {
-                val rid 					= if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
-                val callable 				= java.util.concurrent.Callable<Pair<HighlightRule, Boolean>> 
-                                            {
-                                                val found = try { hay.contains(rule.condition.trim()) } catch (_: Exception) { false }
-                                                rule to found
-                                            }
+    //         for (rule in rulesWithCondition) 
+    //         {
+    //             val rid 					= if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
+    //             val callable 				= java.util.concurrent.Callable<Pair<HighlightRule, Boolean>> 
+    //                                         {
+    //                                             val found = try { hay.contains(rule.condition.trim()) } catch (_: Exception) { false }
+    //                                             rule to found
+    //                                         }
 
-                keyFutures.add                (keyCompletion.submit(callable))
+    //             keyFutures.add                (keyCompletion.submit(callable))
 
-                // show per-key overlay
-                try 
-                {
-                    application.invokeLater {
-                        try 
-                        {
-                            val tid         = "key_${rid}"
+    //             // show per-key overlay
+    //             try 
+    //             {
+    //                 application.invokeLater {
+    //                     try 
+    //                     {
+    //                         val tid         = "key_${rid}"
 
-                            overlayManager.showOrUpdateTaskOverlay(editor, tid, "Searching key for '${rule.name.ifEmpty { rule.targetWord }}'")
-                        } 
-                        catch (ex: Exception) 
-						{ 
-							LOG.warn		("[DHC]: _RuleKeySearch - showOrUpdateTaskOverlay", ex) 
-						}
-                    }
-                } 
-                catch (ex: Exception) 
-				{ 
-					LOG.warn				("[DHC]: _RuleKeySearch - submit callable", ex) 
-				}
-            }
+    //                         overlayManager.showOrUpdateTaskOverlay(editor, tid, "Searching key for '${rule.name.ifEmpty { rule.targetWord }}'")
+    //                     } 
+    //                     catch (ex: Exception) 
+	// 					{ 
+	// 						LOG.warn		("[DHC]: _RuleKeySearch - showOrUpdateTaskOverlay", ex) 
+	// 					}
+    //                 }
+    //             } 
+    //             catch (ex: Exception) 
+	// 			{ 
+	// 				LOG.warn				("[DHC]: _RuleKeySearch - submit callable", ex) 
+	// 			}
+    //         }
 
-            var keyProcessed 				= 0
+    //         var keyProcessed = 0
 
-            while (keyProcessed < keyFutures.size) 
-            {
-                try 
-                {
-                    val completed 			= keyCompletion.take()
-                    val (rule, found) 		= try { completed.get() } catch (_: Exception) { null to false }
+    //         while (keyProcessed < keyFutures.size) 
+    //         {
+    //             try 
+    //             {
+    //                 val completed 			= keyCompletion.take()
+    //                 val (rule, found) 		= try { completed.get() } catch (_: Exception) { null to false }
 
-                    if (rule != null) 
-                    {
-                        val rid 			= if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
+    //                 if (rule != null) 
+    //                 {
+    //                     val rid = if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
 
-                        ruleConditionFound[rid] = found
+    //                     ruleConditionFound[rid] = found
 
-                        application.invokeLater {
-                            try 
-                            {
-                                val tid     = "key_${rid}"
+    //                     application.invokeLater {
+    //                         try 
+    //                         {
+    //                             val tid     = "key_${rid}"
 
-                                if (!found) 
-                                {
-                                    overlayManager.showOrUpdateTaskOverlay(editor, tid, "Key not found for '${rule.name.ifEmpty { rule.targetWord }}' — skipping")
-                                    javax.swing.Timer(1500) { try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {} }.apply { isRepeats = false; start() }
-                                } 
-                                else 
-                                {
-                                    try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {}
-                                }
-                            } 
-                            catch (ex: Exception) 
-							{ 
-								LOG.warn	("[DHC]: _RuleKeySearch - invokeLater", ex) 
-							}
-                        }
-                    }
-                } 
-                catch (ex: Exception) 
-                {} 
-                finally 
-                {
-                    keyProcessed++
-                }
-            }
-        } 
-        catch (ex: Exception) 
-		{ 
-			LOG.warn						("[DHC]: _RuleKeySearch", ex) 
-		}
-    }
+    //                             if (!found) 
+    //                             {
+    //                                 overlayManager.showOrUpdateTaskOverlay(editor, tid, "Key not found for '${rule.name.ifEmpty { rule.targetWord }}' — skipping")
+    //                                 javax.swing.Timer(1500) { try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {} }.apply { isRepeats = false; start() }
+    //                             } 
+    //                             else 
+    //                             {
+    //                                 try { overlayManager.hideTaskOverlay(editor, tid) } catch (_: Exception) {}
+    //                             }
+    //                         } 
+    //                         catch (ex: Exception) 
+	// 						{ 
+	// 							LOG.warn	("[DHC]: _RuleKeySearch - invokeLater", ex) 
+	// 						}
+    //                     }
+    //                 }
+    //             } 
+    //             catch (ex: Exception) 
+    //             {} 
+    //             finally 
+    //             {
+    //                 keyProcessed++
+    //             }
+    //         }
+    //     } 
+    //     catch (ex: Exception) 
+	// 	{ 
+	// 		LOG.warn						("[DHC]: _RuleKeySearch", ex) 
+	// 	}
+    // }
 
     // Large-file chunked processing
-    private fun _FileChunkedSearch
-	(
-		editor					: Editor, 
-		text					: String,  
-		lineCount				: Int, 
-		conditionWindowText		: String?, 
-		enabledRules			: List<HighlightRule>, 
-		ruleConditionFound		: ConcurrentHashMap<String, Boolean>, 
-		results					: MutableList<Pair<TextRange, TextAttributes>>
-	) 
-    {
+   private fun _FileChunkedSearch(
+									editor				: Editor,
+									text				: CharSequence,
+									lineCount			: Int,
+									// conditionWindowText	: CharSequence?,
+									enabledRules		: List<HighlightRule>,
+									ruleConditionFound	: ConcurrentHashMap<String, Boolean>,
+									results				: MutableList<Pair<TextRange, TextAttributes>>
+								 )
+	{
         try 
         {
-            val chunkSize  					= 100
+            val chunkSize 					= 100
 
             val lineStarts 					= application.runReadAction<IntArray> 
                                             {
-                                                val arr 				= IntArray(lineCount)
-                                                var pos 				= 0
-                                                var line 				= 0
-                                                val len 				= text.length
+                                                val arr         = IntArray(lineCount)
+                                                var pos         = 0
+                                                var line         = 0
+                                                val len         = text.length
 
                                                 while (line < lineCount && pos <= len) 
                                                 {
-                                                    arr[line] 			= pos
+                                                    arr[line]     = pos
 
-                                                    val next 			= text.indexOf('\n', pos)
+                                                    val next     = text.indexOf('\n', pos)
 
                                                     if (next == -1) break else { pos = next + 1; line++ }
                                                 }
@@ -1289,11 +1342,14 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
             while (s < lineCount) 
             {
                 val e 						= kotlin.math.min(s + chunkSize - 1, lineCount - 1)
-                val startOffset 			= lineStarts.getOrNull(s) ?: 0
+                val startOffset             = lineStarts.getOrNull(s) ?: 0
                 val endOffset 				= if (e + 1 < lineStarts.size) lineStarts[e + 1] else text.length
                 var pr 						= 0
 
-                if ((s..e).any { it in visibleRange }) pr += 1000
+                if ((s..e).any { it in visibleRange }) 
+				{
+					pr 			+= 1000
+				}
 
                 blocks.add                    (Block(s, e, startOffset, endOffset, pr))
 
@@ -1324,55 +1380,81 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
                 } 
                 catch (ex: Exception) { LOG.warn("[DHC]: _FileChunkedSearch - invokeLater", ex) }
 
-                val callable 	= java.util.concurrent.Callable<List<Pair<TextRange, TextAttributes>>> 
+                val callable = java.util.concurrent.Callable<List<Pair<TextRange, TextAttributes>>> 
                 {
                     val localResults 		= mutableListOf<Pair<TextRange, TextAttributes>>()
-                    val blockText 			= try { text.substring(block.startOffset, block.endOffset) } catch (_: Exception) { "" }
+                    val blockText 			= try { text.subSequence(block.startOffset, block.endOffset) } catch (_: Exception) { "" }
 
                     for (rule in enabledRules) 
                     {
-                        val rid 			= if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
-                        val hasCondition 	= try { rule.condition.trim().isNotEmpty() } catch (_: Exception) { false }
+                        // val rid 			= if (rule.id.isNotEmpty()) rule.id else java.util.UUID.randomUUID().toString()
+                        // val hasCondition = try { rule.condition.trim().isNotEmpty() } catch (_: Exception) { false }
 
-                        if (hasCondition) 
-                        {
-                            val found 		= ruleConditionFound[rid] ?: false
+                        // if (hasCondition) 
+                        // {
+                        //     val found 		= ruleConditionFound[rid] ?: false
 
-                            if (!found)     continue
-                        }
+                        //     if (!found)     continue
+                        // }
 
-                        val shouldHighlight = if (rule.condition.trim().isEmpty()) { true } else 
-                                            {
-                                                val hay = conditionWindowText ?: text
+						val rid 			= if (rule.id.isNotEmpty()) rule.id else rule.name.ifEmpty { rule.targetWord }
 
-                                                hay.contains            (rule.condition.trim())
-                                            }
+						// 1) если у правила есть condition — смотрим кэш
+						val hasCondition 	= try { rule.condition.trim().isNotEmpty() } catch (_: Exception) { false }
 
-                        if (!shouldHighlight) 
-                        {
-                            continue
-                        }
+						if (hasCondition && ruleConditionFound[rid] != true) {
+							continue
+						}
 
-                        val matches         = if (rule.exclusion.trim().isEmpty()) 
-                                            {
-                                                this._GetTextList        (rule, blockText)
-                                            } 
-                                            else 
-                                            {
-                                                val allMatches 			= this._GetTextList(rule, blockText)
+                        // val shouldHighlight = if (rule.condition.trim().isEmpty()) true else (conditionWindowText ?: text).contains(rule.condition.trim())
 
-                                                this._FilterMatches 	(blockText, allMatches, rule.exclusion.trim())
-                                            }
+                        // if (!shouldHighlight) 
+                        // {
+                        //     continue
+                        // }
 
-                        val attributes 		= createTextAttributes	(rule)
+                        // val matches 		= if (rule.exclusion.trim().isEmpty()) 
+						// 					{
+						// 						_GetTextList(rule, blockText)
+						// 					} 
+						// 					else 
+						// 					{
+						// 						val all = _GetTextList(rule, blockText)
 
-                        for (r in matches) 
-                        {
-                            val gStart 		= block.startOffset + r.startOffset
-                            val gEnd 		= block.startOffset + r.endOffset
+						// 						_FilterMatches(blockText, all, rule.exclusion.trim())
+						// 					}
 
-                            localResults.add(TextRange(gStart, gEnd) to attributes)
-                        }
+                        // val attributes 		= createTextAttributes	(rule)
+
+                        // for (r in matches) 
+                        // {
+                        //     val gStart 		= block.startOffset + r.startOffset
+                        //     val gEnd 		= block.startOffset + r.endOffset
+
+                        //     localResults.add(TextRange(gStart, gEnd) to attributes)
+                        // }
+
+						 val matches 		=
+
+							if (rule.exclusion.trim().isEmpty()) 
+							{
+								_GetTextList(rule, blockText)
+							} 
+							else 
+							{
+								val all 	= _GetTextList(rule, blockText)
+								_FilterMatches(blockText, all, rule.exclusion.trim())
+							}
+
+						val attributes 		= createTextAttributes(rule)
+
+						for (r in matches) 
+						{
+							val gStart 		= block.startOffset + r.startOffset
+							val gEnd   		= block.startOffset + r.endOffset
+
+							localResults.add(TextRange(gStart, gEnd) to attributes)
+						}
                     }
                     localResults
                 }
@@ -1480,17 +1562,17 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
 
     private fun _GetTextList(rule: HighlightRule, blockText: String) : List<TextRange>
     {
-        return     if (rule.isRegex) 
+        return 	if (rule.isRegex) 
                 {
                     if (rule.targetWord.startsWith("//")) 
                     {
-                        val regex             = try { Regex(rule.targetWord) } catch (_: Exception) { null }
+                        val regex 			= try { Regex(rule.targetWord) } catch (_: Exception) { null }
 
-                        if (regex != null)     findCommentMatches(blockText, regex) else emptyList()
+                        if (regex != null) 	findCommentMatches(blockText, regex) else emptyList()
                     } 
                     else 
                     {
-                        val preset             = try { Regex(rule.targetWord) } catch (_: Exception) { null }
+                        val preset 			= try { Regex(rule.targetWord) } catch (_: Exception) { null }
 
                         if (preset != null) findRegexMatches(blockText, preset) else emptyList()
                     }
@@ -1500,45 +1582,43 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
                     findAllMatches            (blockText, rule.targetWord)
                 }
     }
-    
-    private fun _FilterMatches(text: String, matches: List<TextRange>, exclusion: String): List<TextRange> 
-    {
-        val filteredMatches                 = mutableListOf<TextRange>()
-        
-        for (match in matches) 
-        {
-            // Получаем строку, содержащую найденное совпадение
-            val lines 						= text.lines()
-            var currentPos 					= 0
-            var matchLine 					= ""
-            
-            // Находим строку с совпадением
-            for (line in lines) 
-            {
-                val lineEnd                 = currentPos + line.length
 
-                if (match.startOffset >= currentPos && match.startOffset < lineEnd) 
-                {
-                    matchLine 				= line
-                    break
-                }
+	private fun _GetTextList(rule: HighlightRule, blockText: CharSequence): List<TextRange> =
 
-                currentPos 					= lineEnd + 1 // +1 для символа новой строки
-            }
-            
-            // Проверяем, содержит ли строка исключение
-            if (!matchLine.contains(exclusion)) 
-            {
-                filteredMatches.add(match)
-            } 
-            else 
-            {
-                // println("[DirectHighlighter] Excluded match at ${match.startOffset} because line contains '$exclusion'")
-            }
+    if (rule.isRegex) 
+	{
+        if (rule.targetWord.startsWith("//")) 
+		{
+            val regex = try { Regex(rule.targetWord) } catch (_: Exception) { null }
+            if (regex != null) findCommentMatches(blockText, regex) else emptyList()
+        } 
+		else 
+		{
+            val preset = try { Regex(rule.targetWord) } catch (_: Exception) { null }
+            if (preset != null) findRegexMatches(blockText, preset) else emptyList()
         }
-        
-        return filteredMatches
+    } 
+	else 
+	{
+        findAllMatches(blockText, rule.targetWord)
     }
+    
+    private fun _FilterMatches(text: CharSequence, matches: List<TextRange>, exclusion: String): List<TextRange> 
+	{
+		if (exclusion.isEmpty()) 			return matches
+
+		val out 							= ArrayList<TextRange>(matches.size)
+
+		for (m in matches) 
+		{
+			val lineStart 					= text.lastIndexOf('\n', startIndex = (m.startOffset - 1).coerceAtLeast(0)).let { if (it == -1) 0 else it + 1 }
+			val lineEnd   					= text.indexOf('\n', startIndex = m.endOffset).let { if (it == -1) text.length else it }
+			val lineSeq   					= text.subSequence(lineStart, lineEnd)
+
+			if (!lineSeq.contains(exclusion)) out.add(m)
+		}
+		return out
+	}
     
     // Apply a set of partial results immediately (EDT)
     private fun _ApplyPartialResults(editor: Editor, partial: List<Pair<TextRange, TextAttributes>>) 

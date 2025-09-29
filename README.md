@@ -1,57 +1,52 @@
-# JetBrains Rider/IntelliJ Code Highlighter Plugin
 
-Плагин для подсветки специальных слов и паттернов в коде в JetBrains Rider и IntelliJ IDEA.
+# JetBrains Rider / IntelliJ Code Highlighter Plugin
 
-## Возможности
+Lightweight plugin to highlight configured words and patterns inside JetBrains Rider and IntelliJ IDEA.
 
-- 🎨 Подсветка ключевых слов: `_this`, `TODO`, `console.log`, `React` компонентов
-- ⚙️ Настраиваемые правила подсветки через UI
-- 🚀 Мгновенное применение изменений настроек
-- 🎯 Поддержка регулярных выражений
-- 🌈 Настройка цветов текста и фона
-- ✨ Стили шрифта и декорации текста
+## Features
 
-## Поддерживаемые IDE
+- Configurable highlighting rules (plain text or regular expressions).
+- Partial/streaming highlighting for large files (100-line chunks).
+- Per-task progress overlays and configurable partial application.
+- Color, font-style and decoration options per rule.
 
-- JetBrains Rider 2024.3+
+## Supported IDEs
+
+- JetBrains Rider 2024.3+ (development targets Rider local install)
 - IntelliJ IDEA 2024.3+
-- Совместим до версии 2025.2.x
 
-## Установка
+## Installation
 
-1. Скачайте последнюю версию из [Releases](https://github.com/narrentum/JB-Raider-Decorator/releases)
-2. В IDE: `File → Settings → Plugins`
-3. Нажмите ⚙️ → `Install Plugin from Disk...`
-4. Выберите скачанный ZIP файл
-5. Перезапустите IDE
+1. Download the plugin ZIP from Releases or build locally (see below).
+2. In IDE: `File → Settings → Plugins` → gear → `Install Plugin from Disk...` → select ZIP.
+3. Restart IDE.
 
-## Настройка
+## Build from source (Windows)
 
-1. Откройте `File → Settings → Tools → Simple Code Highlighter`
-2. Или используйте `Tools → _ Mega → Highlighting Rules Manager`
-3. Настройте правила подсветки по своему вкусу
+Use the bundled Gradle wrapper on Windows:
 
-## Сборка из исходников
-
-```bash
-git clone https://github.com/narrentum/JB-Raider-Decorator.git
-cd JB-Raider-Decorator
-./gradlew buildPlugin -x buildSearchableOptions
+```powershell
+.\gradlew.bat clean buildPlugin --no-daemon
 ```
 
-Готовый плагин будет в папке `build/distributions/`
+Resulting ZIP will be in `build\distributions\`.
 
-## Разработка
+## Development notes
 
-- **Kotlin** 2.2.0
-- **JDK** 17
-- **IntelliJ Platform SDK** 2024.3
-- **Gradle** 8.8
+- The highlighter reads rules from the plugin settings UI. Rules may include an optional "condition/key" field. When set, the plugin first searches for the condition within the first N lines (configurable). If the condition isn't found, the rule is skipped.
+- For large files (>500 lines) the document is split into 100-line chunks and processed in parallel. Partial highlights are applied as chunks complete if `applyPartialOnRuleComplete` is enabled.
+- Avoid committing IDE local artifacts or crash dumps (`*.hprof`) — they are ignored by `.gitignore`.
 
-## Версия
+## Quick smoke test
 
-**1.2.4** - Исправлен UI настроек с упрощенной таблицей правил
+1. Open `test_files\TestFile.cs` (or any file) and trigger highlighting.
+2. On large files you should see partial highlights and per-task overlays that disappear when tasks complete.
 
-## Лицензия
+## Requirements
+
+- Kotlin 2.x (project configured for Kotlin/JVM)
+- JDK 17
+
+## License
 
 MIT License
