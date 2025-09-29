@@ -1,6 +1,7 @@
 <idea-plugin>
-    <version>1.3.61</version>
-    <idea-version since-build="231.8109" until-build="252.*" />
+    <version>1.3.96</version>
+    <!-- Adjust idea-version to cover Rider/IDE 2025.x series. Update if you need stricter ranges. -->
+    <idea-version since-build="231.8109" until-build="253.*" />
     <id>com.codedecorator.rider</id>
         <name>CoDecorator</name>
     <vendor email="narrentum@github.com">Code Decorator</vendor>

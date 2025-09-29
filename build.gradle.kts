@@ -13,6 +13,22 @@ repositories {
     intellijPlatform { defaultRepositories() }
 }
 
+// IntelliJ plugin configuration — target Rider
+intellij {
+    // Target Rider distribution (RD)
+    type.set("RD")
+
+    // Choose either a version to download (recommended for CI) or a localPath for fast local dev.
+    // For Rider 2025.x use a matching version string, e.g.:
+    version.set("2025.2")
+
+    // If you prefer to use a locally installed Rider during development, uncomment and set:
+    // localPath.set("C:/Program Files/JetBrains/JetBrains Rider 2025.2.2")
+
+    // Optional: list of dependent plugins
+    // plugins.set(listOf())
+}
+
 /**
  * JDK 17. В 2.9.0 надёжнее указать toolchain через Kotlin DSL:
  */
@@ -32,9 +48,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     testImplementation(kotlin("test"))
 
-    intellijPlatform {
-        local("C:/Program Files/JetBrains/JetBrains Rider 2025.2.2")
-    }
+    // If you need to use a local IDE for development, prefer setting `intellij { localPath.set(...) }` above.
 }
 
 /**
