@@ -42,6 +42,30 @@ Resulting ZIP will be in `build\distributions\`.
 1. Open `test_files\TestFile.cs` (or any file) and trigger highlighting.
 2. On large files you should see partial highlights and per-task overlays that disappear when tasks complete.
 
+## Advantages & Highlights
+
+Initial public release — CodeDecorator for Rider (minimal, working rule-based text highlighter).
+
+Key features
+- Rule-based highlighting by name/word/regex with exclusion filters.
+- Support for background/foreground colors, font styles and text decorations (underline / strikethrough).
+- Settings UI: enable/disable rules, edit parameters, configure highlight update delay and condition-search window (including whole-file mode).
+
+Performance & reliability
+- Chunked file processing with ExecutorService for large files.
+- Partial results applied as chunks complete for faster feedback.
+- Background tasks cancelled when stale; overlays/tasks updated and hidden safely.
+- Defensive logging and exception handling.
+
+Editor behavior
+- Respects user edits, including typing, paste, undo/redo; invalidates and removes stale highlighters on change.
+- Applies and removes highlights without blocking the UI thread.
+
+Known limitations (this build)
+- Visual overlay/progress UI is disabled (no-op stub) — progress UI will be added in future builds.
+- Needs additional testing across Rider builds / macOS environments; core implementation uses IntelliJ Platform APIs and is cross-platform.
+- Minimal localization and UX polish in this initial release.
+
 ## What works
 
 - Rule-based highlighting by plain text or regular expressions with optional exclusion filters.
