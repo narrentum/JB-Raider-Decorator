@@ -6,13 +6,19 @@ class RulesTableModel : AbstractTableModel() {
 
     private val rules = mutableListOf<HighlightRule>()
     
+    // Columns order matches EnhancedRulesJTable expectations:
+    // 0: Enabled, 1: Name, 2: Target Word, 3: Regex, 4: Condition, 5: Exclusion,
+    // 6: Background Color, 7: Foreground Color, 8: Font Style, 9: Text Decoration
     private val columnNames = arrayOf(
-        "Enabled", 
-        "Name", 
-        "Target Word", 
-        "Foreground Color", 
-        "Background Color", 
-        "Font Style", 
+        "Enabled",
+        "Name",
+        "Target Word",
+        "Regex",
+        "Condition",
+        "Exclusion",
+        "Background Color",
+        "Foreground Color",
+        "Font Style",
         "Text Decoration"
     )
 
@@ -32,10 +38,13 @@ class RulesTableModel : AbstractTableModel() {
             0 -> Boolean::class.java // Enabled
             1 -> String::class.java  // Name
             2 -> String::class.java  // Target Word
-            3 -> String::class.java  // Foreground Color
-            4 -> String::class.java  // Background Color
-            5 -> HighlightRule.FontStyle::class.java // Font Style
-            6 -> HighlightRule.TextDecoration::class.java // Text Decoration
+            3 -> Boolean::class.java // Regex
+            4 -> String::class.java  // Condition
+            5 -> String::class.java  // Exclusion
+            6 -> String::class.java  // Background Color
+            7 -> String::class.java  // Foreground Color
+            8 -> HighlightRule.FontStyle::class.java // Font Style
+            9 -> HighlightRule.TextDecoration::class.java // Text Decoration
             else -> String::class.java
         }
     }
@@ -50,10 +59,13 @@ class RulesTableModel : AbstractTableModel() {
             0 -> rule.enabled
             1 -> rule.name
             2 -> rule.targetWord
-            3 -> rule.foregroundColor
-            4 -> rule.backgroundColor
-            5 -> rule.fontStyle
-            6 -> rule.textDecoration
+            3 -> rule.isRegex
+            4 -> rule.condition
+            5 -> rule.exclusion
+            6 -> rule.backgroundColor
+            7 -> rule.foregroundColor
+            8 -> rule.fontStyle
+            9 -> rule.textDecoration
             else -> null
         }
     }
@@ -66,10 +78,13 @@ class RulesTableModel : AbstractTableModel() {
             0 -> rule.copy(enabled = aValue as? Boolean ?: rule.enabled)
             1 -> rule.copy(name = aValue as? String ?: rule.name)
             2 -> rule.copy(targetWord = aValue as? String ?: rule.targetWord)
-            3 -> rule.copy(foregroundColor = aValue as? String ?: rule.foregroundColor)
-            4 -> rule.copy(backgroundColor = aValue as? String ?: rule.backgroundColor)
-            5 -> rule.copy(fontStyle = aValue as? HighlightRule.FontStyle ?: rule.fontStyle)
-            6 -> rule.copy(textDecoration = aValue as? HighlightRule.TextDecoration ?: rule.textDecoration)
+            3 -> rule.copy(isRegex = aValue as? Boolean ?: rule.isRegex)
+            4 -> rule.copy(condition = aValue as? String ?: rule.condition)
+            5 -> rule.copy(exclusion = aValue as? String ?: rule.exclusion)
+            6 -> rule.copy(backgroundColor = aValue as? String ?: rule.backgroundColor)
+            7 -> rule.copy(foregroundColor = aValue as? String ?: rule.foregroundColor)
+            8 -> rule.copy(fontStyle = aValue as? HighlightRule.FontStyle ?: rule.fontStyle)
+            9 -> rule.copy(textDecoration = aValue as? HighlightRule.TextDecoration ?: rule.textDecoration)
             else -> rule
         }
         

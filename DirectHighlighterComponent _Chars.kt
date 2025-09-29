@@ -38,7 +38,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent 			as _FEMEvent
 import com.intellij.openapi.editor.markup.HighlighterTargetArea 		as HighlighterTargetArea
 
 @Service(Service.Level.PROJECT)
-public class DirectHighlighterComponent(private val project: Project) : Disposable 
+public class DirectHighlighterComponent_Char(private val project: Project) : Disposable 
 {
     private data class Block (
         val startLine: Int,

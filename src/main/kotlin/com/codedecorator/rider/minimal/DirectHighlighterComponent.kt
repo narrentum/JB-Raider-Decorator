@@ -85,9 +85,9 @@ public class DirectHighlighterComponent(private val project: Project) : Disposab
     private val runningTasks 				= ConcurrentHashMap<Editor, ConcurrentHashMap<String, Future<*>>>()
 
     private val settings 					= SimpleSettings.getInstance()
-    private val enabledRules 				= settings.getEnabledRules()
 
-	private var _updateInfo: UpdateInfo 	= UpdateInfo(false, null)
+    private val enabledRules				: List<HighlightRule> get() = settings.getEnabledRules()
+	private var _updateInfo					: UpdateInfo 				= UpdateInfo(false, null)
 
     // private val overlayManager 			= OverlayManager(project)
  	// Overlay is disabled: provide a local no-op stub with the same methods used in this file.

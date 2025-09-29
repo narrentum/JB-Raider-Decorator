@@ -7,6 +7,7 @@ import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
 
 class CodeDecoratorSettings {
+    private val LOG = com.intellij.openapi.diagnostic.Logger.getInstance(CodeDecoratorSettings::class.java)
     private val mainPanel: JPanel = JPanel(BorderLayout())
     private var tableModel: DefaultTableModel? = null
     private var table: JTable? = null
@@ -25,21 +26,23 @@ class CodeDecoratorSettings {
     private fun createUI() {
         // println("[DEBUG] Starting createUI()")
         
-        // Create table model with all 8 columns
+        // Create table model with full 10 columns to match the primary RulesTableModel
         val columnNames = arrayOf(
-            "Enabled", 
-            "Name", 
-            "Target Word", 
+            "Enabled",
+            "Name",
+            "Target Word",
             "IsRegex",
-            "Foreground Color", 
+            "Condition",
+            "Exclusion",
             "Background Color",
+            "Foreground Color",
             "Font Style",
             "Text Decoration"
         )
         tableModel = object : DefaultTableModel(columnNames, 0) {
             override fun getColumnClass(columnIndex: Int): Class<*> {
                 return when (columnIndex) {
-                    0, 3 -> java.lang.Boolean::class.java  // Enabled и IsRegex - Boolean columns
+                    0, 3 -> java.lang.Boolean::class.java  // Enabled and IsRegex - Boolean columns
                     else -> java.lang.String::class.java
                 }
             }
@@ -94,29 +97,33 @@ class CodeDecoratorSettings {
         
         tableModel!!.setRowCount(0) // Clear existing rows
         
-        for ((index, rule) in settings.rules.withIndex()) {
+    for (rule in settings.rules) {
             try {
-                // println("[DEBUG] Loading rule $index: ${rule.name}, enabled=${rule.enabled}")
+        // println("[DEBUG] Loading rule: ${rule.name}, enabled=${rule.enabled}")
                 tableModel!!.addRow(arrayOf(
                     rule.enabled,
                     rule.name,
                     rule.targetWord,
                     rule.isRegex,
-                    rule.foregroundColor,
+                    rule.condition,
+                    rule.exclusion,
                     rule.backgroundColor,
+                    rule.foregroundColor,
                     rule.fontStyle.displayName,
                     rule.textDecoration.displayName
                 ))
             } catch (e: Exception) {
-                // println("[ERROR] Failed to load rule $index: ${e.message}")
-                // Add safe fallback row
+                // println("[ERROR] Failed to load rule: ${e.message}")
+                // Add safe fallback row using available properties
                 tableModel!!.addRow(arrayOf(
                     true,
-                    rule.name ?: "Unknown Rule",
-                    rule.targetWord ?: "pattern",
+                    rule.name,
+                    rule.targetWord,
                     false,
-                    "#000000",
+                    rule.condition,
+                    rule.exclusion,
                     "#FFFFFF",
+                    "#000000",
                     "Нормальный",
                     "Нет"
                 ))
@@ -232,17 +239,20 @@ class CodeDecoratorSettings {
             return true
         }
         
-        // Check if any rule data differs
+        // Check if any rule data differs (column mapping: 0=Enabled,1=Name,2=Target,3=IsRegex,4=Condition,5=Exclusion,
+        // 6=Background,7=Foreground,8=FontStyle,9=TextDecoration)
         for (i in 0 until tableModel!!.rowCount) {
             val rule = settings.rules[i]
             if (tableModel!!.getValueAt(i, 0) != rule.enabled ||
                 tableModel!!.getValueAt(i, 1) != rule.name ||
                 tableModel!!.getValueAt(i, 2) != rule.targetWord ||
                 tableModel!!.getValueAt(i, 3) != rule.isRegex ||
-                tableModel!!.getValueAt(i, 4) != rule.foregroundColor ||
-                tableModel!!.getValueAt(i, 5) != rule.backgroundColor ||
-                tableModel!!.getValueAt(i, 6) != rule.fontStyle.displayName ||
-                tableModel!!.getValueAt(i, 7) != rule.textDecoration.displayName) {
+                tableModel!!.getValueAt(i, 4) != rule.condition ||
+                tableModel!!.getValueAt(i, 5) != rule.exclusion ||
+                tableModel!!.getValueAt(i, 6) != rule.backgroundColor ||
+                tableModel!!.getValueAt(i, 7) != rule.foregroundColor ||
+                tableModel!!.getValueAt(i, 8) != rule.fontStyle.displayName ||
+                tableModel!!.getValueAt(i, 9) != rule.textDecoration.displayName) {
                 return true
             }
         }
@@ -261,6 +271,9 @@ class CodeDecoratorSettings {
         
         applyTableToSettings(settings)
         refreshAllProjectHighlighting()
+        try {
+            LOG.info("[Settings] Applied ${settings.rules.size} rules and refreshed highlighting")
+        } catch (_: Exception) {}
     }
 
     fun reset(settings: SimpleSettings) {
@@ -310,7 +323,7 @@ class CodeDecoratorSettings {
         columnModel.getColumn(0).cellEditor = DefaultCellEditor(enabledEditor)
         columnModel.getColumn(0).preferredWidth = 60
         
-        // Column 3: IsRegex - checkbox
+    // Column 3: IsRegex - checkbox
         columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(
                 table: JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean,
@@ -332,16 +345,22 @@ class CodeDecoratorSettings {
         regexEditor.horizontalAlignment = JCheckBox.CENTER
         columnModel.getColumn(3).cellEditor = DefaultCellEditor(regexEditor)
         columnModel.getColumn(3).preferredWidth = 60
+
+    // Column 4: Condition - text
+    columnModel.getColumn(4).preferredWidth = 200
+
+    // Column 5: Exclusion - text
+    columnModel.getColumn(5).preferredWidth = 200
         
-        // Column 6: Font Style - dropdown
+        // Column 8: Font Style - dropdown
         val fontStyleCombo = JComboBox(arrayOf("Нормальный", "Жирный", "Курсив", "Жирный курсив"))
-        columnModel.getColumn(6).cellEditor = DefaultCellEditor(fontStyleCombo)
-        columnModel.getColumn(6).preferredWidth = 120
-        
-        // Column 7: Text Decoration - dropdown
+        columnModel.getColumn(8).cellEditor = DefaultCellEditor(fontStyleCombo)
+        columnModel.getColumn(8).preferredWidth = 120
+
+        // Column 9: Text Decoration - dropdown
         val textDecorationCombo = JComboBox(arrayOf("Нет", "Подчеркивание", "Зачеркивание"))
-        columnModel.getColumn(7).cellEditor = DefaultCellEditor(textDecorationCombo)
-        columnModel.getColumn(7).preferredWidth = 120
+        columnModel.getColumn(9).cellEditor = DefaultCellEditor(textDecorationCombo)
+        columnModel.getColumn(9).preferredWidth = 120
     }
 
     private fun createButtonPanel(): JPanel {
@@ -352,12 +371,14 @@ class CodeDecoratorSettings {
         
         addButton.addActionListener {
             tableModel!!.addRow(arrayOf(
-                true, 
-                "New Rule", 
-                "pattern", 
+                true,
+                "New Rule",
+                "pattern",
                 false,
-                "#000000", 
+                "",
+                "",
                 "#FFFFFF",
+                "#000000",
                 "Нормальный",
                 "Нет"
             ))
@@ -395,10 +416,12 @@ class CodeDecoratorSettings {
                 val name = tableModel!!.getValueAt(i, 1) as? String ?: "Rule"
                 val targetWord = tableModel!!.getValueAt(i, 2) as? String ?: "pattern"
                 val isRegex = tableModel!!.getValueAt(i, 3) as? Boolean ?: false
-                val foregroundColor = tableModel!!.getValueAt(i, 4) as? String ?: "#000000"
-                val backgroundColor = tableModel!!.getValueAt(i, 5) as? String ?: "#FFFFFF"
-                val fontStyleStr = tableModel!!.getValueAt(i, 6) as? String ?: "Нормальный"
-                val textDecorationStr = tableModel!!.getValueAt(i, 7) as? String ?: "Нет"
+                val condition = tableModel!!.getValueAt(i, 4) as? String ?: ""
+                val exclusion = tableModel!!.getValueAt(i, 5) as? String ?: ""
+                val backgroundColor = tableModel!!.getValueAt(i, 6) as? String ?: "#FFFFFF"
+                val foregroundColor = tableModel!!.getValueAt(i, 7) as? String ?: "#000000"
+                val fontStyleStr = tableModel!!.getValueAt(i, 8) as? String ?: "Нормальный"
+                val textDecorationStr = tableModel!!.getValueAt(i, 9) as? String ?: "Нет"
                 
                 // Convert string values back to enums
                 val fontStyle = when (fontStyleStr) {
@@ -419,8 +442,8 @@ class CodeDecoratorSettings {
                     name = name,
                     targetWord = targetWord,
                     isRegex = isRegex,
-                    condition = "",
-                    exclusion = "",
+                    condition = condition,
+                    exclusion = exclusion,
                     backgroundColor = backgroundColor,
                     foregroundColor = foregroundColor,
                     fontStyle = fontStyle,

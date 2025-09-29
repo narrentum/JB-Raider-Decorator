@@ -12,8 +12,8 @@ Lightweight plugin to highlight configured words and patterns inside JetBrains R
 
 ## Supported IDEs
 
-- JetBrains Rider 2024.3+ (development targets Rider local install)
-- IntelliJ IDEA 2024.3+
+- JetBrains Rider 2025.2 (development targets Rider local install)
+- IntelliJ IDEA 2025.2
 
 ## Installation
 
@@ -41,6 +41,37 @@ Resulting ZIP will be in `build\distributions\`.
 
 1. Open `test_files\TestFile.cs` (or any file) and trigger highlighting.
 2. On large files you should see partial highlights and per-task overlays that disappear when tasks complete.
+
+## What works
+
+- Rule-based highlighting by plain text or regular expressions with optional exclusion filters.
+- Per-rule color, font-style and text decoration (underline / strikethrough) support.
+- Settings UI to enable/disable rules, edit rule parameters, and tune performance options (highlight update delay, condition-search window or whole-file mode).
+- Chunked processing for large files (document split into chunks and processed in parallel); partial highlights are applied as chunks complete when enabled.
+- Responsive behavior around user edits: typing, paste, undo/redo trigger safe invalidation and recalculation of highlights without blocking the UI thread.
+- Background tasks are cancellable when an editor is switched or a newer generation of work is started.
+
+## What doesn't work / Known limitations
+
+- Visual overlay / progress UI is disabled in this build (implemented as a no-op stub). Progress indicators and interactive overlays will be re-enabled in a future release.
+- Limited cross-version testing: while the code uses IntelliJ Platform APIs and is intended to be cross-platform (Windows/macOS/Linux), it still requires broader testing on Rider 2025.x on macOS and other platforms.
+- Minimal localization and UI polish: the settings UI and help text need refinement and localization work.
+- Automated tests and CI compatibility checks are not yet available in this repository — unit tests and automated compatibility validation are planned.
+- Some advanced editor integrations (overlay widgets, complex drag/drop behavior) are intentionally disabled or stubbed in the initial release.
+
+## 🤝 Development & Collaboration
+
+This plugin was created in collaboration with an AI assistant.  
+The human author worked together with AI to accelerate design, implementation, and documentation.  
+AI contributed to:
+
+- Code architecture and implementation  
+- Advanced regex pattern matching and performance tuning  
+- Kotlin and IntelliJ Platform best practices (including Rider-specific APIs)  
+- Editor behavior handling (highlighters, background processing, task cancellation)  
+- Documentation, examples, and release notes
+
+The combination of human creativity and AI assistance resulted in a robust, feature-rich extension that handles complex decoration scenarios with ease.
 
 ## Requirements
 
